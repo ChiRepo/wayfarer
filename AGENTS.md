@@ -5,7 +5,7 @@
 The user requested this permanent project directory on 13 October 2026:
 `/Users/chinmayc/Documents/slow roads remake`
 
-Continue all game development here. The former projectless chat directory under `Documents/Codex/2026-10-12/` is a preserved backup, not the active checkout.
+The user explicitly chose folder-only storage and asked to skip Codex project creation/attachment. Do not treat sidebar registration as pending work. Continue all game development here. The former projectless chat directory under `Documents/Codex/2026-10-12/` is a preserved backup, not the active checkout.
 
 Read `PROGRESS.md` and `README.md` at the beginning of project work. Keep `PROGRESS.md` current after meaningful changes, recording the outcome, files affected, verification actually completed, and remaining work. Preserve a local Git checkpoint for completed user-requested work; do not commit unrelated user changes. No automatic background work or timed backups have been configured.
 

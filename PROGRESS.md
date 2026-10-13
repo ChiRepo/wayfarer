@@ -14,11 +14,11 @@ Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io f
 - Added durable project guidance in `AGENTS.md` and this progress log, and established a local Git checkpoint.
 - The older projectless workspace remains as a backup. Future edits belong in this canonical directory.
 
-### App project registration: user action still required
+### Folder-only storage confirmed
 
-The folder is ready as a filesystem/Git project. Codex's project list currently contains only ERP; this folder has not yet been registered in the sidebar. The available tools can list projects and move chats to an existing project, but do not provide a create-project operation. Computer Use explicitly denied controlling the Codex app for safety reasons. Do not bypass this restriction by editing the app's internal state or using another UI automation mechanism.
+The user explicitly requested skipping Codex project creation/attachment and keeping all progress in this directory. App project registration is no longer required or pending. Continue using this canonical folder explicitly for future work in this chat.
 
-Add a local project in Codex pointing to this folder. Once it appears in `list_projects`, this existing chat can be moved into it using the supported project tool. Moving a chat's sidebar membership does not by itself prove that its recorded working directory has changed; continue using explicit paths here and start future project work from the canonical folder.
+Rechecked 18,511 preserved file/symlink entries on 13 October: zero mismatches. The 20 entries excluded from this follow-up comparison are root Git metadata and the intentionally updated README/.gitignore. Game source, the full REA checkout, dependencies, and research evidence remain intact. This progress log and AGENTS.md record the folder-only decision.
 
 ## 12 October 2026 — Initial playable implementation
 
