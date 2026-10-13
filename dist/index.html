@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#172e2c" />
+    <meta
+      name="description"
+      content="Take the long way. An endless driving escape through cinematic landscapes, changing weather, and open roads."
+    />
+    <title>Wayfarer — Find your horizon</title>
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Procedural 3D driving landscape"></canvas>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+    <div id="loading">
+      <div class="wordmark">WAYFARER<span>FIND YOUR HORIZON</span></div>
+      <div class="loading-line"></div>
+      <p>Making room for a little escape.</p>
+    </div>
+    <div id="webgl-error" hidden>
+      <h1>A road worth seeing.</h1>
+      <p>
+        This experience needs WebGL 2. Enable hardware acceleration in your browser, then reload.
+      </p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+    <header class="topbar ui">
+      <a class="brand" href="#" aria-label="Wayfarer home"
+        ><svg viewBox="0 0 36 26"><path d="M2 23 13 3l7 12 5-8 9 16M10 23l6-10 6 10" /></svg
+        >WAYFARER</a
+      >
+      <div class="live-label"><span></span> NOWHERE TO BE. EVERYWHERE TO GO.</div>
+      <nav>
+        <button class="icon-button" id="sound" aria-label="Enable sound" title="Sound">
+          <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm5 4 5 6m0-6-5 6" /></svg></button
+        ><button class="icon-button" id="settings" aria-label="Open settings" title="Settings">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6m8 4v6" /></svg></button
+        ><button class="icon-button" id="help" aria-label="Driving controls" title="Controls">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4m0 3v.1" />
+          </svg>
+        </button>
+      </nav>
+    </header>
+    <main id="welcome" class="ui">
+      <div class="eyebrow"><span class="small-line"></span> AN ENDLESS DRIVING ESCAPE</div>
+      <h1>Take the<br /><em>long way.</em></h1>
+      <p class="intro">
+        A winding road. A quieter mind.<br />No finish line. Just you and the horizon.
+      </p>
+      <button id="start" class="primary">Let’s drive <span>↗</span></button>
+      <div class="start-note"><kbd>W A S D</kbd> or arrow keys to explore</div>
+    </main>
+    <div id="destination" class="ui">
+      <div class="destination-icon">↗</div>
+      <div>
+        <span>YOUR NEXT CHAPTER</span><strong id="destination-name">The Alpine Pass</strong>
+        <p id="destination-description">High peaks. Deep breaths.</p>
+      </div>
+      <span class="destination-number">01 / 03</span>
+    </div>
+    <footer id="welcome-footer" class="ui">
+      <div class="route-select">
+        <span class="label">CHOOSE YOUR SCENERY</span>
+        <div class="route-buttons">
+          <button data-biome="alpine" class="active"><span>01</span> Alpine</button
+          ><button data-biome="coast"><span>02</span> Coast</button
+          ><button data-biome="desert"><span>03</span> Desert</button>
+        </div>
+      </div>
+      <div class="weather-select">
+        <span class="label">SET THE MOOD</span
+        ><button id="mood">
+          <span id="mood-icon">◒</span><span id="mood-label">Golden hour</span><span>⌄</span>
+        </button>
+      </div>
+      <div class="footer-note">A little less hurry.<br />A little more wonder.</div>
+    </footer>
+    <div id="drive-ui" class="ui" hidden>
+      <div class="journey">
+        <span class="label">THE JOURNEY IS THE DESTINATION</span
+        ><strong id="trip">0.00 <small>km</small></strong
+        ><span id="route-label">ALPINE PASS / GOLDEN HOUR</span>
+      </div>
+      <div id="road-status">ON THE OPEN ROAD</div>
+      <div class="speedometer">
+        <svg viewBox="0 0 180 120">
+          <path class="gauge-track" d="M20 105A75 75 0 1 1 160 105" />
+          <path id="gauge-fill" d="M20 105A75 75 0 1 1 160 105" />
+        </svg>
+        <div><strong id="speed">0</strong><span>KM / H</span></div>
+        <span id="gear">N</span>
+      </div>
+      <div class="drive-toolbar">
+        <button id="autodrive" aria-pressed="false"><span>◎</span> Autodrive <kbd>F</kbd></button
+        ><button id="camera"><span>▣</span> Chase <kbd>C</kbd></button
+        ><button id="photo"><span>⌑</span> Photo <kbd>P</kbd></button
+        ><button id="pause" aria-label="Pause driving">Ⅱ</button>
+      </div>
+      <div class="driving-hint" id="driving-hint">
+        <kbd>W</kbd> Accelerate <kbd>S</kbd> Brake <kbd>A</kbd><kbd>D</kbd> Steer
+        <kbd>SPACE</kbd> Handbrake <kbd>R</kbd> Reset
+      </div>
+      <div class="touch-controls">
+        <div>
+          <button data-input="left" aria-label="Steer left">←</button
+          ><button data-input="right" aria-label="Steer right">→</button>
+        </div>
+        <div>
+          <button data-input="brake" aria-label="Brake">STOP</button
+          ><button data-input="throttle" aria-label="Accelerate">↑</button>
+        </div>
+      </div>
+    </div>
+    <div id="photo-ui" hidden>
+      <span>PHOTO MODE <small>Drag to orbit · Scroll to zoom</small></span
+      ><button id="capture">Save photograph ↗</button
+      ><button id="exit-photo">Back to the road <kbd>ESC</kbd></button>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="settings-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">MAKE IT YOUR OWN</span>
+          <h2>A change of scenery.</h2>
+        </div>
+        <button class="close" aria-label="Close settings">×</button>
+      </div>
+      <label
+        >Landscape<select aria-label="Landscape" id="landscape">
+          <option value="alpine">The Alpine Pass</option>
+          <option value="coast">The Pacific Coast</option>
+          <option value="desert">The Painted Desert</option>
+        </select></label
+      ><label
+        >Light & weather<select aria-label="Light & weather" id="weather">
+          <option value="golden">Golden hour</option>
+          <option value="day">Clear daylight</option>
+          <option value="rain">Passing rain</option>
+          <option value="night">Blue hour</option>
+        </select></label
+      ><label
+        >Vehicle colour
+        <div class="swatches">
+          <button
+            data-color="#efb46e"
+            class="selected"
+            aria-label="Sandstone"
+            style="--swatch: #efb46e"
+          ></button
+          ><button data-color="#759d94" aria-label="Sage" style="--swatch: #759d94"></button
+          ><button data-color="#ddd9ca" aria-label="Pearl" style="--swatch: #ddd9ca"></button
+          ><button data-color="#b85a48" aria-label="Terracotta" style="--swatch: #b85a48"></button
+          ><button
+            data-color="#314f65"
+            aria-label="Midnight"
+            style="--swatch: #314f65"
+          ></button></div></label
+      ><label
+        >Graphics<select aria-label="Graphics" id="quality">
+          <option value="balanced">Balanced</option>
+          <option value="high">High detail</option>
+          <option value="low">Battery saver</option>
+        </select></label
+      ><label class="range-label"
+        >Sound level
+        <input id="volume" aria-label="Sound level" type="range" min="0" max="100" value="35"
+      /></label>
+      <div class="settings-bottom">
+        <button id="new-road" class="secondary">Generate a new road ↗</button
+        ><span id="seed-label">ROAD 0007</span>
+      </div>
+    </dialog>
+    <dialog id="help-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">THE OPEN ROAD AWAITS</span>
+          <h2>Find your rhythm.</h2>
+        </div>
+        <button class="close" aria-label="Close controls">×</button>
+      </div>
+      <div class="control-list">
+        <p>
+          <span>Accelerate / brake</span
+          ><span><kbd>W</kbd><kbd>S</kbd> or <kbd>↑</kbd><kbd>↓</kbd></span>
+        </p>
+        <p>
+          <span>Steer</span><span><kbd>A</kbd><kbd>D</kbd> or <kbd>←</kbd><kbd>→</kbd></span>
+        </p>
+        <p><span>Handbrake</span><kbd>SPACE</kbd></p>
+        <p><span>Let the road lead</span><kbd>F</kbd></p>
+        <p><span>Change camera</span><kbd>C</kbd></p>
+        <p><span>Photo mode</span><kbd>P</kbd></p>
+        <p><span>Return to road</span><kbd>R</kbd></p>
+        <p><span>Pause / resume</span><kbd>ESC</kbd></p>
+      </div>
+      <p class="muted">
+        Gamepad supported: left stick to steer, RT to accelerate, LT to brake. Touch controls appear
+        on touchscreens. Rain reduces grip; the shoulder is rougher than the road.
+      </p>
+    </dialog>
+    <dialog id="pause-dialog">
+      <span class="eyebrow">TAKE A BREATH</span>
+      <h2>The road can wait.</h2>
+      <p class="muted">Your journey is paused.</p>
+      <button id="resume" class="primary">Keep wandering <span>↗</span></button
+      ><button id="home" class="text-button">Return to the start</button>
+    </dialog>
+    <dialog id="capture-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">POSTCARDS FROM NOWHERE</span>
+          <h2>A moment to keep.</h2>
+        </div>
+        <button class="close" aria-label="Close photograph">×</button>
+      </div>
+      <img id="photo-preview" alt="Your Wayfarer landscape photograph" /><a
+        id="photo-download"
+        class="primary"
+        download="wayfarer.png"
+        >Download PNG <span>↗</span></a
+      >
+      <p class="muted">You can also save the image using your browser’s image menu.</p>
+    </dialog>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

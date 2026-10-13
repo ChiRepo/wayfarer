@@ -1,0 +1,1059 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+:root {
+  font-family: "DM Sans", sans-serif;
+  color: #fffaf0;
+  font-synthesis: none;
+  --cream: #f2deba;
+  --muted: #c5cec7;
+  --ink: #173b35;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #183638;
+  overflow: hidden;
+}
+button,
+a,
+select,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+select,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #f2d2a0;
+  outline-offset: 5px;
+}
+button {
+  border: 0;
+}
+button:disabled {
+  opacity: 0.45;
+}
+button,
+select {
+  touch-action: manipulation;
+}
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(7, 26, 27, 0.65), transparent 68%),
+    linear-gradient(
+      0deg,
+      rgba(6, 24, 24, 0.85),
+      transparent 32%,
+      transparent 77%,
+      rgba(7, 25, 27, 0.32)
+    );
+  transition: opacity 1s;
+}
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' filter='url(%23n)' opacity='.8' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
+}
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 31px 4.1%;
+  z-index: 5;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+.brand svg {
+  width: 34px;
+  fill: none;
+  stroke: #f1ddb7;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.live-label {
+  font-size: 9px;
+  letter-spacing: 2.3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e6df;
+}
+.live-label span {
+  width: 5px;
+  height: 5px;
+  border-radius: 100%;
+  background: #bdd5bc;
+  box-shadow: 0 0 12px #bdd5bc;
+}
+nav {
+  display: flex;
+  gap: 7px;
+}
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ffffff25;
+  border-radius: 50%;
+  background: #fff1;
+}
+.icon-button:hover {
+  background: #fff3;
+}
+.icon-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#welcome {
+  position: fixed;
+  top: 25%;
+  left: 7.2%;
+  transition:
+    transform 0.8s,
+    opacity 0.8s;
+}
+.eyebrow,
+.label {
+  font-size: 9px;
+  letter-spacing: 2.4px;
+  font-weight: 600;
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #dedac5;
+}
+.small-line {
+  display: block;
+  width: 29px;
+  height: 1px;
+  background: #e9d5b3;
+}
+h1 {
+  font-family: Manrope, sans-serif;
+  font-size: clamp(54px, 6.1vw, 100px);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -5px;
+  margin: 25px 0 22px;
+}
+h1 em {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -4px;
+  color: #f2dfbb;
+}
+.intro {
+  font-size: 13px;
+  color: #e0e4dc;
+  line-height: 1.85;
+  letter-spacing: 0.1px;
+  margin-bottom: 26px;
+}
+.primary {
+  min-width: 185px;
+  padding: 17px 22px;
+  background: var(--cream);
+  color: #213d35;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 42px;
+  border-radius: 3px;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+.primary:hover {
+  background: #fff2d6;
+  transform: translateY(-2px);
+}
+.primary span {
+  font-size: 22px;
+  font-weight: 400;
+}
+.start-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 17px;
+  font-size: 9px;
+  color: #d5dacf;
+}
+kbd {
+  font-family: inherit;
+  display: inline-block;
+  background: #fff1;
+  border: 1px solid #ffffff38;
+  min-width: 19px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 400;
+  color: inherit;
+  text-align: center;
+}
+.start-note kbd {
+  font-size: 8px;
+  letter-spacing: 2px;
+}
+#destination {
+  position: fixed;
+  right: 4.3%;
+  bottom: 25%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-top: 1px solid #ffffff40;
+  padding-top: 19px;
+  width: 265px;
+  text-shadow: 0 2px 20px #0006;
+}
+.destination-icon {
+  align-self: flex-start;
+  color: var(--cream);
+  font-size: 23px;
+}
+#destination span:not(.destination-number) {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1.9px;
+  color: #dbe1d4;
+}
+.destination-number {
+  font-size: 9px;
+  color: #c9d1c8;
+  margin-left: auto;
+  align-self: flex-start;
+  padding-top: 2px;
+}
+#destination strong {
+  display: block;
+  font-family: Manrope, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  margin-top: 9px;
+}
+#destination p {
+  font-size: 10px;
+  color: #d4d9d1;
+  margin: 6px 0 0;
+}
+#welcome-footer {
+  position: fixed;
+  bottom: 0;
+  left: 4.1%;
+  right: 4.1%;
+  height: 118px;
+  border-top: 1px solid #ffffff35;
+  display: flex;
+  align-items: center;
+  gap: 55px;
+}
+.label {
+  display: block;
+  color: #aebeb2;
+  font-size: 8px;
+  letter-spacing: 1.8px;
+}
+.route-buttons {
+  display: flex;
+  gap: 7px;
+  margin-top: 13px;
+}
+.route-buttons button {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 9px 17px;
+  border-radius: 3px;
+  font-size: 11px;
+  transition: 0.2s;
+}
+.route-buttons button:first-child {
+  margin-left: -17px;
+}
+.route-buttons button span {
+  font-size: 8px;
+  color: #aab7aa;
+  margin-right: 8px;
+}
+.route-buttons button.active {
+  background: #ffffff13;
+  border-color: #ffffff25;
+}
+.route-buttons button.active span {
+  color: #e0c492;
+}
+.route-buttons button:hover {
+  background: #ffffff20;
+}
+.weather-select {
+  padding-left: 35px;
+  border-left: 1px solid #ffffff25;
+}
+.weather-select button {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  background: transparent;
+  padding: 12px 0 0;
+  font-size: 11px;
+  min-width: 160px;
+}
+.weather-select button span:last-child {
+  margin-left: auto;
+  color: #aebdb0;
+}
+#mood-icon {
+  color: #eace9e;
+  font-size: 18px;
+}
+.footer-note {
+  margin-left: auto;
+  color: #c1cbbd;
+  font-family: Georgia, serif;
+  font-style: italic;
+  line-height: 1.7;
+  font-size: 12px;
+  text-align: right;
+}
+.ui {
+  transition: opacity 0.4s;
+}
+body.driving .vignette {
+  opacity: 0.35;
+}
+body.driving .live-label {
+  opacity: 0.65;
+}
+body.driving #welcome,
+body.driving #welcome-footer,
+body.driving #destination {
+  opacity: 0;
+  pointer-events: none;
+}
+body.driving #welcome {
+  transform: translateX(-30px);
+}
+.journey {
+  position: fixed;
+  left: 4.3%;
+  bottom: 110px;
+}
+.journey strong {
+  display: block;
+  font-family: Manrope, sans-serif;
+  font-weight: 400;
+  font-size: 29px;
+  margin-top: 11px;
+  letter-spacing: 1px;
+}
+.journey small {
+  font-size: 12px;
+  color: #c0cdbb;
+}
+.journey > span:last-child {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 2px;
+  margin-top: 7px;
+  color: #c0cbbd;
+}
+.speedometer {
+  position: fixed;
+  right: 4%;
+  bottom: 95px;
+  width: 180px;
+  height: 145px;
+  text-align: center;
+}
+.speedometer svg {
+  width: 180px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  fill: none;
+  stroke-width: 2;
+}
+.gauge-track {
+  stroke: #ffffff30;
+}
+#gauge-fill {
+  stroke: #ecd2a3;
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  transition: stroke-dashoffset 0.15s;
+}
+.speedometer > div {
+  position: absolute;
+  inset: 35px 0 0;
+}
+.speedometer strong {
+  font-family: Manrope, sans-serif;
+  font-size: 49px;
+  font-weight: 500;
+  line-height: 1;
+}
+.speedometer div span {
+  display: block;
+  margin-top: 8px;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: #cad2c6;
+}
+#gear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 10px;
+  color: #e9d6b5;
+}
+#road-status {
+  position: fixed;
+  left: 50%;
+  bottom: 155px;
+  transform: translateX(-50%);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: #ffefd0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#road-status.show {
+  opacity: 1;
+}
+.drive-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: 41px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid #ffffff25;
+  background: #16332bcc;
+  backdrop-filter: blur(15px);
+  border-radius: 7px;
+  white-space: nowrap;
+}
+.drive-toolbar button {
+  background: transparent;
+  font-size: 11px;
+  padding: 11px 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.drive-toolbar button:hover,
+.drive-toolbar button[aria-pressed="true"] {
+  background: #ffffff1c;
+  color: #f2d3a2;
+}
+.drive-toolbar button > span {
+  font-size: 15px;
+}
+.drive-toolbar kbd {
+  font-size: 8px;
+  padding: 1px 4px;
+  color: #c7d2c0;
+}
+.driving-hint {
+  position: fixed;
+  bottom: 13px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 8px;
+  color: #bccab9;
+  transition: opacity 1s;
+}
+.driving-hint kbd {
+  padding: 2px 4px;
+  font-size: 7px;
+}
+.touch-controls {
+  display: none;
+}
+dialog {
+  color: #f6f0df;
+  background: #16352ff5;
+  border: 1px solid #cde4cb38;
+  border-radius: 10px;
+  padding: 32px;
+  width: min(480px, calc(100vw - 32px));
+  box-shadow: 0 30px 100px #001d1a80;
+  backdrop-filter: blur(25px);
+  max-height: 90vh;
+  overflow: auto;
+}
+dialog::backdrop {
+  background: #061d216a;
+  backdrop-filter: blur(7px);
+}
+.dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.dialog-heading .eyebrow {
+  font-size: 8px;
+}
+h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 31px;
+  margin: 12px 0 0;
+  letter-spacing: -0.5px;
+}
+.close {
+  background: #ffffff12;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 22px;
+  line-height: 1;
+}
+dialog label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid #ffffff16;
+  font-size: 12px;
+}
+select {
+  background: #fff1;
+  color: #f4ecdc;
+  border: 1px solid #ffffff25;
+  padding: 9px 12px;
+  font-size: 11px;
+  border-radius: 4px;
+  max-width: 60%;
+}
+option {
+  background: #16352f;
+}
+input[type="range"] {
+  width: 150px;
+  accent-color: #e6c58f;
+}
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatches button {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 2px solid transparent;
+}
+.swatches button.selected {
+  outline: 1px solid #f9edcd;
+  outline-offset: 3px;
+}
+.settings-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  gap: 10px;
+}
+.secondary {
+  background: #ffffff12;
+  border: 1px solid #ffffff25;
+  padding: 11px 14px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.settings-bottom span {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #b8c6b6;
+}
+.control-list p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ffffff15;
+  padding: 11px 0;
+  margin: 0;
+  font-size: 12px;
+}
+.control-list kbd {
+  margin-left: 5px;
+  font-size: 10px;
+}
+.muted {
+  color: #b6c6b8;
+  font-size: 11px;
+  line-height: 1.8;
+  margin-top: 20px;
+}
+#pause-dialog {
+  text-align: center;
+  padding: 45px;
+}
+#pause-dialog .eyebrow {
+  justify-content: center;
+}
+#pause-dialog .primary {
+  width: 100%;
+  margin-top: 24px;
+}
+.text-button {
+  display: block;
+  width: 100%;
+  background: transparent;
+  padding: 20px 10px 0;
+  font-size: 11px;
+  color: #bacbbc;
+}
+#photo-ui {
+  position: fixed;
+  bottom: 30px;
+  left: 4%;
+  right: 4%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#photo-ui > span {
+  font-size: 11px;
+  letter-spacing: 2px;
+  margin-right: auto;
+}
+#photo-ui small {
+  display: block;
+  margin-top: 10px;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+#photo-ui button {
+  padding: 14px 18px;
+  background: #17382dc9;
+  border: 1px solid #ffffff40;
+  border-radius: 4px;
+  font-size: 11px;
+}
+body.photo .ui,
+body.photo .grain,
+body.photo .vignette {
+  opacity: 0;
+  pointer-events: none;
+}
+#toast {
+  position: fixed;
+  left: 50%;
+  top: 110px;
+  transform: translate(-50%, -15px);
+  background: #16352ee8;
+  border: 1px solid #ffffff30;
+  border-radius: 30px;
+  padding: 13px 24px;
+  font-size: 12px;
+  opacity: 0;
+  transition: 0.3s;
+  pointer-events: none;
+  z-index: 20;
+  text-align: center;
+}
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #183a34;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 1s;
+}
+.wordmark {
+  font-family: Manrope, sans-serif;
+  font-size: 24px;
+  letter-spacing: 8px;
+  text-align: center;
+}
+.wordmark span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 3px;
+  margin-top: 15px;
+  color: #bacab8;
+}
+.loading-line {
+  height: 1px;
+  width: 120px;
+  background: #e2c58f;
+  margin-top: 42px;
+  animation: breathe 1s infinite alternate;
+}
+#loading p {
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
+  color: #b7c7b6;
+  margin-top: 22px;
+}
+#loading.done {
+  opacity: 0;
+  pointer-events: none;
+}
+#webgl-error {
+  position: fixed;
+  inset: 0;
+  z-index: 101;
+  padding: 15%;
+  background: #173a34;
+}
+#webgl-error h1 {
+  font-size: 50px;
+}
+#webgl-error p {
+  line-height: 1.8;
+}
+#webgl-error button {
+  background: var(--cream);
+  padding: 15px 30px;
+  color: #173b35;
+}
+[hidden] {
+  display: none !important;
+}
+@keyframes breathe {
+  to {
+    transform: scaleX(0.4);
+    opacity: 0.3;
+  }
+}
+@media (max-height: 720px) and (min-width: 761px) {
+  #welcome {
+    top: 22%;
+  }
+  h1 {
+    font-size: 65px;
+    margin-top: 20px;
+    margin-bottom: 17px;
+  }
+  .intro {
+    margin-bottom: 20px;
+  }
+  #welcome-footer {
+    height: 95px;
+  }
+  #destination {
+    bottom: 25%;
+  }
+}
+@media (max-width: 900px) {
+  .live-label {
+    display: none;
+  }
+  #welcome {
+    left: 6%;
+    top: 24%;
+  }
+  h1 {
+    font-size: 74px;
+  }
+  #destination {
+    width: 220px;
+    bottom: 27%;
+  }
+  #welcome-footer {
+    gap: 20px;
+  }
+  .weather-select {
+    padding-left: 20px;
+  }
+  .footer-note {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .topbar {
+    padding: 24px 6%;
+  }
+  .brand {
+    font-size: 13px;
+    letter-spacing: 3px;
+    gap: 7px;
+  }
+  .brand svg {
+    width: 28px;
+  }
+  nav {
+    gap: 5px;
+  }
+  .icon-button {
+    width: 31px;
+    height: 31px;
+  }
+  #welcome {
+    top: 22%;
+    left: 8%;
+  }
+  h1 {
+    font-size: 62px;
+    letter-spacing: -3px;
+  }
+  h1 em {
+    letter-spacing: -3px;
+  }
+  .eyebrow {
+    font-size: 7px;
+    letter-spacing: 1.9px;
+  }
+  .intro {
+    font-size: 12px;
+  }
+  .primary {
+    min-width: 173px;
+    padding: 14px 19px;
+  }
+  #destination {
+    display: none;
+  }
+  #welcome-footer {
+    left: 8%;
+    right: 8%;
+    height: 140px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-top: 19px;
+    gap: 9px;
+  }
+  .route-select {
+    width: 100%;
+  }
+  .route-buttons {
+    margin-top: 8px;
+  }
+  .route-buttons button {
+    padding: 8px 15px;
+  }
+  .weather-select {
+    border: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .weather-select button {
+    padding: 0;
+    min-width: 145px;
+  }
+  .weather-select .label {
+    font-size: 7px;
+  }
+  .route-select .label {
+    font-size: 7px;
+  }
+  .speedometer {
+    right: 3%;
+    bottom: 175px;
+    transform: scale(0.8);
+    transform-origin: right bottom;
+  }
+  .journey {
+    left: 7%;
+    bottom: 183px;
+  }
+  .journey .label {
+    font-size: 6px;
+    max-width: 130px;
+    line-height: 1.5;
+  }
+  .journey strong {
+    font-size: 25px;
+  }
+  .journey > span:last-child {
+    font-size: 6px;
+  }
+  .drive-toolbar {
+    bottom: 103px;
+    gap: 1px;
+  }
+  .drive-toolbar button {
+    font-size: 10px;
+    padding: 9px 10px;
+    gap: 6px;
+  }
+  .drive-toolbar kbd {
+    display: none;
+  }
+  .driving-hint {
+    display: none;
+  }
+  #road-status {
+    bottom: 280px;
+    white-space: nowrap;
+  }
+  .touch-controls {
+    display: flex;
+    position: fixed;
+    bottom: 23px;
+    left: 5%;
+    right: 5%;
+    justify-content: space-between;
+  }
+  .touch-controls > div {
+    display: flex;
+    gap: 10px;
+  }
+  .touch-controls button {
+    width: 53px;
+    height: 55px;
+    border: 1px solid #ffffff40;
+    border-radius: 10px;
+    background: #163a2c88;
+    backdrop-filter: blur(7px);
+    font-size: 23px;
+    touch-action: none;
+    user-select: none;
+  }
+  .touch-controls button[data-input="brake"] {
+    font-size: 9px;
+  }
+  .touch-controls button:active {
+    background: #dcc89b66;
+  }
+  #photo-ui {
+    flex-wrap: wrap;
+    bottom: 25px;
+  }
+  #photo-ui > span {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  #photo-ui button {
+    padding: 12px;
+    font-size: 10px;
+  }
+  dialog {
+    padding: 24px;
+  }
+  h2 {
+    font-size: 28px;
+  }
+  #toast {
+    max-width: 90%;
+    width: max-content;
+    font-size: 11px;
+  }
+}
+@media (pointer: coarse) and (min-width: 601px) {
+  .touch-controls {
+    display: flex;
+    position: fixed;
+    bottom: 35px;
+    left: 3%;
+    right: 3%;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .touch-controls > div {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .touch-controls button {
+    width: 50px;
+    height: 50px;
+    border: 1px solid #ffffff40;
+    border-radius: 8px;
+    background: #173a2baa;
+    font-size: 20px;
+    touch-action: none;
+  }
+  .touch-controls button[data-input="brake"] {
+    font-size: 9px;
+  }
+  .driving-hint {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+  .loading-line {
+    animation: none;
+  }
+}
+
+#capture-dialog {
+  width: min(850px, calc(100vw - 32px));
+}
+#photo-preview {
+  width: 100%;
+  display: block;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+#photo-download {
+  text-decoration: none;
+  width: max-content;
+}
+body.photo #toast {
+  opacity: 0;
+}

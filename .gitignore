@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+.openai/local/
+*.tar.gz
+
+# Retained analysis workspace and third-party repository; not game source.
+/work/

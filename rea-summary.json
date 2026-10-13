@@ -1,0 +1,30 @@
+{
+  "evidence_id": "ev_ed824156e2d66e02d65b926b02575befb90055065efae34e2094731481cd05c4",
+  "subject": {
+    "name": "reference",
+    "digest": {
+      "sha256": "936adf1364c3904cde4c131f32212fbee37f862958b533120b7461dced4087d4"
+    },
+    "format": "directory",
+    "architecture": null,
+    "local_path": "/Users/chinmayc/Documents/Codex/2026-10-12/https-github-com-morluto-rea-https/work/reference"
+  },
+  "provider": {
+    "id": "rea-javascript-application",
+    "name": "REA JavaScript application analyzer",
+    "version": "1"
+  },
+  "node_counts": {
+    "storage": 10,
+    "javascript-module": 58,
+    "javascript-asset": 3,
+    "artifact": 1
+  },
+  "edge_count": 663,
+  "analyzed_files": [
+    "HillsHeightmap.js",
+    "SettingsManager.js",
+    "application.js"
+  ],
+  "limits": "Three selected public modules; missing imports and runtime behavior are not exhaustively recovered."
+}
