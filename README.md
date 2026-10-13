@@ -10,9 +10,6 @@ An original, stylized endless-driving game inspired by the relaxed driving loop 
 
 Live game: https://wavefinder-2da9d.web.app. Deployment target: `wavefinder-2da9d`, serving only `dist/`. Deploy with an authorized Firebase CLI session:
 
-```sh
-firebase deploy --only hosting --project wavefinder-2da9d
-```
 
 The public client API key is not needed to serve this static game. Analytics is not loaded. Multiplayer loads a locally bundled Firebase Auth/Realtime Database client only when joining a room. Firebase is now the requested deployment destination; the older unpublished Sites registration is retained only as historical metadata.
 
