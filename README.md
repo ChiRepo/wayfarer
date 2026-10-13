@@ -1,6 +1,6 @@
 # Wayfarer
 
-Source repository: https://github.com/ChiRepo/wayfarer (private).
+Source repository: https://github.com/ChiRepo/wayfarer.
 
 Permanent project folder: `/Users/chinmayc/Documents/slow roads remake`. See `PROGRESS.md` for saved progress and `AGENTS.md` for continuing work.
 
