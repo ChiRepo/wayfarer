@@ -4,6 +4,12 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 13 October 2026 — GitHub publication requested
+
+The user requested creating a new GitHub repository named `wayfarer`, committing, and pushing the project. The completed game and Firebase multiplayer release are already committed as `e254cee`. The canonical checkout is clean and has no Git remote. Only the tracked original game, deployment configuration, tests, and concise research/progress records will be pushed; the ignored full research workspace and installed dependencies remain local. Private visibility is the default because public visibility was not requested.
+
+Installed the official GitHub CLI. Neither it nor Git's existing HTTPS credential helper has a usable GitHub sign-in. Repository creation and push are pending the user's GitHub authentication. No GitHub repository has been created yet, and no source has been pushed. Continue from this canonical checkout after sign-in, verify the account, create the requested repository, add `origin`, push `main`, and compare the remote commit with the local commit.
+
 ## 13 October 2026 — Multiplayer
 
 The user expanded the request to multiplayer after the first updated game successfully deployed to https://wavefinder-2da9d.web.app. Added eight-seat shared rooms, invitation codes/links, anonymous player identities, synchronized road/biome/server-time weather, remote cars with independent paint and wheel animation, interpolation, presence/heartbeat and disconnect cleanup, rejoin/regroup controls, connection cancellation, and solo fallback. Remote drivers are intentionally non-colliding companions.
