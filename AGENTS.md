@@ -9,6 +9,8 @@ The user explicitly chose folder-only storage and asked to skip Codex project cr
 
 Read `PROGRESS.md` and `README.md` at the beginning of project work. Keep `PROGRESS.md` current after meaningful changes, recording the outcome, files affected, verification actually completed, and remaining work. Preserve a local Git checkpoint for completed user-requested work; do not commit unrelated user changes. No automatic background work or timed backups have been configured.
 
+GitHub source repository: `https://github.com/ChiRepo/wayfarer` (private). The canonical checkout uses `origin`; `main` tracks `origin/main`. Preserve the existing commit history when pushing future changes.
+
 ## Structure
 
 - The runnable static game is `dist/`; no dependency installation or build is needed.

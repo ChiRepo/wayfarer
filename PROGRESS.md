@@ -4,11 +4,11 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
-## 13 October 2026 — GitHub publication requested
+## 13 October 2026 — GitHub publication
 
-The user requested creating a new GitHub repository named `wayfarer`, committing, and pushing the project. The completed game and Firebase multiplayer release are already committed as `e254cee`. The canonical checkout is clean and has no Git remote. Only the tracked original game, deployment configuration, tests, and concise research/progress records will be pushed; the ignored full research workspace and installed dependencies remain local. Private visibility is the default because public visibility was not requested.
+The user requested creating a new GitHub repository named `wayfarer`, committing, and pushing the project. The completed game and Firebase multiplayer release are committed as `e254cee`. GitHub repository: https://github.com/ChiRepo/wayfarer (private). The canonical checkout uses this repository as `origin`, and `main` tracks `origin/main`. Only the tracked original game, deployment configuration, tests, and concise research/progress records will be pushed; the ignored full research workspace and installed dependencies remain local. Private visibility is the default because public visibility was not requested.
 
-Installed the official GitHub CLI. Neither it nor Git's existing HTTPS credential helper has a usable GitHub sign-in. Repository creation and push are pending the user's GitHub authentication. No GitHub repository has been created yet, and no source has been pushed. Continue from this canonical checkout after sign-in, verify the account, create the requested repository, add `origin`, push `main`, and compare the remote commit with the local commit.
+Installed the official GitHub CLI. The user completed GitHub device authorization; the verified account is `ChiRepo`. Created the private repository and successfully pushed the full local commit history to `main`, including game release `e254cee` and publication preparation `7f194d0`. Repository creation, committing, and the initial push are complete. This publication record is saved in a follow-up commit and pushed to the same branch. No additional game changes or Firebase deployment were needed for GitHub publication.
 
 ## 13 October 2026 — Multiplayer
 

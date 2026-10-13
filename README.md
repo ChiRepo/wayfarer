@@ -1,5 +1,7 @@
 # Wayfarer
 
+Source repository: https://github.com/ChiRepo/wayfarer (private).
+
 Permanent project folder: `/Users/chinmayc/Documents/slow roads remake`. See `PROGRESS.md` for saved progress and `AGENTS.md` for continuing work.
 
 An original, stylized endless-driving game inspired by the relaxed driving loop of [Slow Roads](https://slowroads.io/). Built from scratch with Three.js after examining public browser behavior and selected public JavaScript modules using [REA](https://github.com/morluto/rea/).
