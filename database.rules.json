@@ -1,0 +1,101 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        ".read": "auth != null",
+        ".write": "auth != null && !newData.exists() && (!data.child('players').exists() || data.child('meta/expiresAt').val() < now)",
+        ".validate": "$room.matches(/^[A-Z2-9]{10}$/)",
+        "meta": {
+          ".write": "auth != null && !data.exists() && newData.child('owner').val() === auth.uid",
+          ".validate": "newData.hasChildren(['owner','seed','biome','weather','createdAt','expiresAt'])",
+          "owner": {
+            ".validate": "newData.isString() && newData.val() === auth.uid"
+          },
+          "seed": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99999 && newData.val() % 1 === 0"
+          },
+          "biome": {
+            ".validate": "newData.val() === 'alpine' || newData.val() === 'coast' || newData.val() === 'desert'"
+          },
+          "weather": {
+            ".validate": "newData.isString() && newData.val().matches(/^(golden|day|rain|night|mist|overcast)$/)"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now && newData.val() >= now - 60000"
+          },
+          "expiresAt": {
+            ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 86400000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "players": {
+          "$slot": {
+            ".write": "auth != null && $slot.matches(/^[0-7]$/) && ((!newData.exists() && (!data.exists() || data.child('uid').val() === auth.uid)) || (newData.child('uid').val() === auth.uid && root.child('rooms').child($room).child('meta/expiresAt').val() > now && (!data.exists() || data.child('uid').val() === auth.uid || data.child('t').val() < now - 120000)))",
+            ".validate": "newData.hasChildren([\"uid\", \"name\", \"color\", \"x\", \"y\", \"z\", \"h\", \"p\", \"r\", \"steer\", \"spin\", \"u\", \"w0\", \"w1\", \"w2\", \"w3\", \"t\"])",
+            "uid": {
+              ".validate": "newData.isString() && newData.val() === auth.uid"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9 _-]{1,20}$/)"
+            },
+            "color": {
+              ".validate": "newData.isString() && newData.val().matches(/^#[a-fA-F0-9]{6}$/)"
+            },
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= -10000 && newData.val() <= 10000"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= -100 && newData.val() <= 10000"
+            },
+            "z": {
+              ".validate": "newData.isNumber() && newData.val() >= -10000000 && newData.val() <= 10000000"
+            },
+            "h": {
+              ".validate": "newData.isNumber() && newData.val() >= -3.15 && newData.val() <= 3.15"
+            },
+            "p": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "r": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "steer": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 1"
+            },
+            "spin": {
+              ".validate": "newData.isNumber() && newData.val() >= -6.29 && newData.val() <= 6.29"
+            },
+            "u": {
+              ".validate": "newData.isNumber() && newData.val() >= -10 && newData.val() <= 60"
+            },
+            "w0": {
+              ".validate": "newData.isNumber() && newData.val() >= -2 && newData.val() <= 2"
+            },
+            "w1": {
+              ".validate": "newData.isNumber() && newData.val() >= -2 && newData.val() <= 2"
+            },
+            "w2": {
+              ".validate": "newData.isNumber() && newData.val() >= -2 && newData.val() <= 2"
+            },
+            "w3": {
+              ".validate": "newData.isNumber() && newData.val() >= -2 && newData.val() <= 2"
+            },
+            "t": {
+              ".validate": "newData.isNumber() && newData.val() <= now && newData.val() >= now - 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

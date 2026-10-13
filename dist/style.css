@@ -1057,3 +1057,43 @@ body.photo .vignette {
 body.photo #toast {
   opacity: 0;
 }
+
+/* Keep controls reachable in notched, compact and landscape viewports. */
+#weather-status { position: fixed; top: max(88px, calc(env(safe-area-inset-top) + 64px)); left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 1.6px; color: #eee7cfbb; white-space: nowrap; pointer-events: none; }
+.topbar { padding-top: max(24px, env(safe-area-inset-top)); }
+dialog { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+.touch-controls { bottom: max(23px, env(safe-area-inset-bottom)) !important; }
+@media (max-width: 600px) { .icon-button { min-width: 44px; min-height: 44px; } #weather-status { top: 83px; font-size: 8px; } }
+@media (max-height: 500px) and (orientation: landscape) {
+ .topbar { padding: max(10px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)); }
+ #welcome { top: 19%; left: 6%; } h1 { font-size: 42px; margin: 10px 0; } .intro { font-size: 11px; margin-bottom: 12px; }
+ #welcome .eyebrow, .start-note, #destination, .footer-note, .driving-hint { display: none; }
+ #welcome-footer { height: 78px; padding-top: 10px; left: 6%; right: 6%; gap: 12px; }
+ .route-buttons { margin-top: 5px; } .route-buttons button { padding: 7px 12px; }
+ .primary { padding: 10px 16px; min-height: 42px; }
+ .journey { bottom: 92px; left: max(24px, env(safe-area-inset-left)); } .journey .label { display: none; } .journey strong { font-size: 24px; }
+ .speedometer { bottom: 78px; right: 3%; transform: scale(.62); transform-origin: right bottom; }
+ .drive-toolbar { bottom: 18px; } .drive-toolbar button { padding: 12px 8px; font-size: 10px; } .drive-toolbar kbd { display: none; }
+ #road-status { bottom: 92px; font-size: 8px; } #weather-status { top: 58px; font-size: 8px; }
+ .touch-controls { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); }
+ .touch-controls button { width: 46px; height: 46px; }
+ .touch-controls > div { gap: 6px; }
+}
+@media (max-width: 360px) { .brand { letter-spacing: 1px; } .topbar { padding-left: 4%; padding-right: 4%; } h1 { font-size: 53px; } .route-buttons button { padding: 9px 12px; } .drive-toolbar button { padding: 10px 7px; } }
+@media (prefers-reduced-motion: reduce) { .grain { display: none; } }
+
+#multiplayer-dialog input { width: min(62%, 300px); min-width: 0; border: 1px solid #d5d8c344; border-radius: 6px; padding: 12px; background: #102c27; color: var(--cream); font: inherit; }
+#room-code { text-transform: uppercase; letter-spacing: 2px; }
+#active-room-code { display: block; font-size: clamp(22px, 5vw, 34px); letter-spacing: 4px; margin: 12px 0 20px; }
+.room-divider { font-size: 9px; letter-spacing: 2px; opacity: .55; margin: 28px 0 6px; }
+#room-players { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px; }
+#room-players li::before { content: '●'; color: #baca9c; font-size: 8px; margin-right: 9px; }
+.room-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+#convoy-badge { position: fixed; top: 110px; left: 50%; transform: translateX(-50%); background: #173b3599; border: 1px solid #ece5c933; border-radius: 20px; padding: 9px 16px; font-size: 10px; backdrop-filter: blur(8px); }
+button:disabled, select:disabled { opacity: .45; cursor: default; }
+@media (max-width: 600px) { .topbar { padding-left: 4%; padding-right: 4%; } .brand { letter-spacing: 1.8px; } nav { gap: 0; } #convoy-badge { top: 103px; font-size: 9px; padding: 8px 12px; } }
+@media (max-width: 360px) { .brand svg { width: 22px; } .brand { font-size: 11px; letter-spacing: 1px; } }
+@media (max-height: 500px) and (orientation: landscape) { #convoy-badge { top: 78px; font-size: 9px; padding: 7px 10px; } }
+
+#room-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#room-players li { min-width: 0; overflow-wrap: anywhere; }

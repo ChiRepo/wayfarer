@@ -1,5 +1,5 @@
 import * as T from "./vendor/three.module.js";
-import { clamp, damp, lerp } from "./physics.js";
+import { clamp, damp, lerp, TERRAIN_OFFSETS } from "./physics.js";
 const rand = (n) => {
   const r = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return r - Math.floor(r);
@@ -51,6 +51,7 @@ export class World {
   constructor(canvas, road) {
     this.road = road;
     this.chunks = new Map();
+    this.remoteCars = new Map();
     this.weather = "golden";
     this.mode = "chase";
     this.home = true;
@@ -59,14 +60,22 @@ export class World {
     this.orbitHeight = 0.32;
     this.orbitDistance = 9;
     this.look = new T.Vector3();
-    this.weatherBlend = 0;
+    this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.wetness = 0;
+    this.rainAmount = 0;
+    this.wind = 0.3;
+    this.renderScale = 1;
+    this.performanceTime = 0;
+    this.slowTime = 0;
+    this.fastTime = 0;
+    this.tempColor = new T.Color();
     this.time = 0;
     this.renderer = new T.WebGLRenderer({
       canvas,
       antialias: true,
       alpha: false,
       powerPreference: "high-performance",
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.setSize(innerWidth, innerHeight);
@@ -104,14 +113,16 @@ export class World {
           bottom: { value: new T.Color(0xf2d4a4) },
           sun: { value: new T.Vector3(-0.55, 0.23, -0.8).normalize() },
           time: { value: 0 },
+          cloudCover: { value: 0.55 },
+          sunPower: { value: 1 },
         },
         vertexShader:
           "varying vec3 vDirection; void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
-        fragmentShader: `varying vec3 vDirection;uniform vec3 top;uniform vec3 bottom;uniform vec3 sun;uniform float time;
+        fragmentShader: `varying vec3 vDirection;uniform vec3 top;uniform vec3 bottom;uniform vec3 sun;uniform float time;uniform float cloudCover;uniform float sunPower;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float f=0.,a=.5;for(int i=0;i<5;i++){f+=a*noise(p);p=p*2.03+vec2(19.1);a*=.5;}return f;}
-void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix(bottom,top,clamp(h*1.65,0.,1.));vec2 cp=d.xz/(max(d.y,0.)+.2)*2.+vec2(time*.002,0.);float clouds=smoothstep(.52,.78,fbm(cp))*smoothstep(.03,.18,d.y);c=mix(c,mix(bottom,vec3(.85),.65),clouds*.55);float dist=distance(d,sun);c+=vec3(1.,.56,.22)*pow(max(0.,1.-dist),16.)*.45;c=mix(c,vec3(1.,.87,.57),1.-smoothstep(.018,.025,dist));gl_FragColor=vec4(c,1.);
+void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix(bottom,top,clamp(h*1.65,0.,1.));vec2 cp=d.xz/(max(d.y,0.)+.2)*2.+vec2(time*.002,0.);float clouds=smoothstep(.64-cloudCover*.23,.88-cloudCover*.18,fbm(cp))*smoothstep(.03,.18,d.y);c=mix(c,mix(bottom,vec3(.85),.65),clouds*(.35+cloudCover*.5));float dist=distance(d,sun);c+=vec3(1.,.56,.22)*pow(max(0.,1.-dist),16.)*.45*sunPower;c=mix(c,vec3(1.,.87,.57),(1.-smoothstep(.018,.025,dist))*sunPower);gl_FragColor=vec4(c,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`,
@@ -133,6 +144,16 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       }),
       rail: new T.MeshStandardMaterial({ color: 0xb6b9a8, metalness: 0.5, roughness: 0.5 }),
       post: new T.MeshStandardMaterial({ color: 0xede8d6, roughness: 1 }),
+    };
+    this.foliageWind = { time: { value: 0 }, strength: { value: 0.1 } };
+    this.materials.foliage.onBeforeCompile = shader => {
+      shader.uniforms.swayTime = this.foliageWind.time;
+      shader.uniforms.swayStrength = this.foliageWind.strength;
+      shader.vertexShader = "uniform float swayTime; uniform float swayStrength;\n" + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+        transformed.x += sin(swayTime + instanceMatrix[3].x * .07 + instanceMatrix[3].z * .04) * swayStrength * max(position.y + 1.5, 0.) * .08;
+        #endif`);
     };
     this.geometries = {
       pine: pineGeometry(),
@@ -174,6 +195,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       this.camera.aspect = innerWidth / innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(innerWidth, innerHeight);
+      this.applyResolution();
     };
     window.addEventListener("resize", this.resize);
   }
@@ -264,10 +286,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     const positions = [],
       cols = [],
       inds = [],
-      offsets = [
-        -450, -350, -260, -195, -140, -100, -70, -48, -32, -22, -15, -10, -7, -5.2, 0, 5.2, 7, 10,
-        15, 22, 32, 48, 70, 100, 140, 195, 260, 350, 450,
-      ],
+      offsets = TERRAIN_OFFSETS,
       rows = 40;
     let c = new T.Color();
     for (let i = 0; i <= rows; i++) {
@@ -275,7 +294,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       for (let j = 0; j < offsets.length; j++) {
         const d = offsets[j],
           x = road.center(s) + d,
-          y = road.terrain(x, s);
+          y = road.terrainVertex(x, s);
         positions.push(x, y, -s);
         c.set(palette.grass);
         const detail = rand(Math.floor(x * 0.8) + Math.floor(s * 0.8) * 0.1);
@@ -293,6 +312,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
         const a = i * stride + j;
         inds.push(a, a + 1, a + stride, a + 1, a + stride + 1, a + stride);
       }
+    closeGround(positions, cols, inds, stride, rows);
     const geo = new T.BufferGeometry();
     geo.setAttribute("position", new T.Float32BufferAttribute(positions, 3));
     geo.setAttribute("color", new T.Float32BufferAttribute(cols, 3));
@@ -410,6 +430,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       posts.setMatrixAt(i, dummy.matrix);
+      group.userData.obstacles.push({ x: dummy.position.x, z: -s, r: 0.09 });
       dummy.position.y += 0.23;
       dummy.updateMatrix();
       markers.setMatrixAt(i, dummy.matrix);
@@ -452,6 +473,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       sign.position.set(road.center(s) + 7, road.elevation(s), -s);
       sign.rotation.y = -road.heading(s);
       group.add(sign);
+      group.userData.obstacles.push({ x: road.center(s) + 7, z: -s, r: 0.12 });
     }
     this.scene.add(group);
     this.chunks.set(index, group);
@@ -481,20 +503,28 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
   resolveCollisions(v) {
     let hit = false;
     const chunk = Math.floor(-v.z / 160);
-    if (Math.abs(v.x - this.road.center(-v.z)) > 5) {
+    if (Math.abs(v.x - this.road.center(-v.z)) > 3) {
       for (let j = chunk - 1; j <= chunk + 1; j++) {
         const obstacles = this.chunks.get(j)?.userData.obstacles || [];
         for (const o of obstacles)
-          if (Math.abs(v.z - o.z) < o.r + 2 && Math.abs(v.x - o.x) < o.r + 2)
-            hit = v.collideCircle(o.x, o.z, o.r) || hit;
+          if (Math.abs(v.z - o.z) < o.r + 4 && Math.abs(v.x - o.x) < o.r + 4)
+            hit = v.collideObstacle(o.x, o.z, o.r) || hit;
       }
     }
-    const rail =
-      this.road.biome === "coast" || Math.abs(this.road.curvature(chunk * 160 + 80)) > 0.0018;
-    const offset = v.x - this.road.center(-v.z);
-    if (rail && offset > 4.75 && offset < 7.2) {
-      hit = v.collideCircle(this.road.center(-v.z) + 5.85, v.z, 0.07) || hit;
+    // Sample the continuous rail around both bumpers; no gaps between visible segments.
+    for (const along of [-1.3, 0, 1.3]) {
+      const ss = -v.z + Math.cos(v.heading) * along;
+      const ci = Math.floor(ss / 160);
+      const rail = this.road.biome === "coast" || Math.abs(this.road.curvature(ci * 160 + 80)) > 0.0018;
+      if (rail && Math.abs(v.x - this.road.center(ss) - 5.8) < 4)
+        hit = v.collideObstacle(this.road.center(ss) + 5.8, -ss, 0.07) || hit;
     }
+    const offset = v.x - this.road.center(-v.z);
+    if (Math.abs(offset) > 235) {
+      v.x = this.road.center(-v.z) + Math.sign(offset) * 235;
+      v.u *= 0.98; v.v *= 0.8;
+    }
+    if (hit) v.updateSuspension(0);
     return hit;
   }
   setRoad(road) {
@@ -699,6 +729,8 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
         this.car.add(pivot);
         this.wheels.push({ pivot, spin, front: z < 0 });
       }
+    this.reverseMaterial = new T.MeshStandardMaterial({ color: 0xf3eee0, emissive: 0xe8f4ff, emissiveIntensity: 0 });
+    for (const side of [-1, 1]) this.body.add(mesh(new T.BoxGeometry(0.2, 0.06, 0.055), this.reverseMaterial, side * 0.69, -0.065, 2.21));
     this.headlights = [];
     for (const side of [-1, 1]) {
       const light = new T.SpotLight(0xffe7bb, 0, 80, 0.48, 0.7, 1);
@@ -805,6 +837,10 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
         exposure: 0.95,
         density: 0.0035,
       },
+      overcast: { top: 0x687f88, bottom: 0xc7d0c3, fog: 0xb0bdb0, sun: 0xdce9dc,
+        power: 1.3, ambient: 2.2, exposure: 1.05, density: 0.0021 },
+      mist: { top: 0x8eaaa9, bottom: 0xd8d9c5, fog: 0xb8cbc0, sun: 0xffe6bc,
+        power: 1.1, ambient: 2.1, exposure: 1.08, density: 0.006 },
       night: {
         top: 0x111d3b,
         bottom: 0x887e94,
@@ -817,53 +853,74 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       },
     };
     this.targetWeather = presets[weather];
-    this.rain.visible = weather === "rain";
-    this.headlights.forEach(
-      (l) => (l.intensity = weather === "night" ? 65 : weather === "rain" ? 22 : 0),
-    );
-    this.materials.road.roughness = weather === "rain" ? 0.34 : 0.94;
   }
   setQuality(q) {
-    this.renderer.setPixelRatio(
-      q === "high"
-        ? Math.min(devicePixelRatio, 2)
-        : q === "low"
-          ? 1
-          : Math.min(devicePixelRatio, 1.5),
-    );
-    this.renderer.shadowMap.enabled = q !== "low";
+    this.quality = q;
+    this.renderScale = 1;
+    this.applyResolution();
+  }
+  applyResolution() {
+    const cap = this.quality === "high" ? 2 : this.quality === "low" ? 1 : 1.5;
+    const budget = this.quality === "high" ? 4000000 : this.quality === "low" ? 1000000 : 2200000;
+    const ratio = Math.min(devicePixelRatio || 1, cap, Math.sqrt(budget / Math.max(1, innerWidth * innerHeight))) * this.renderScale;
+    this.renderer.setPixelRatio(Math.max(0.55, ratio));
+    this.renderer.shadowMap.enabled = this.quality !== "low" && this.renderScale > 0.65;
+    this.rain.geometry.setDrawRange(0, this.quality === "low" ? 450 : 1800);
+  }
+  adaptQuality(frameSeconds) {
+    if (this.quality !== "balanced" || frameSeconds > 0.25) return;
+    this.performanceTime += frameSeconds;
+    if (this.performanceTime < 4) return;
+    this.slowTime = frameSeconds > 1 / 38 ? this.slowTime + frameSeconds : Math.max(0, this.slowTime - frameSeconds * 0.3);
+    this.fastTime = frameSeconds < 1 / 55 ? this.fastTime + frameSeconds : 0;
+    if (this.slowTime > 3 && this.renderScale > 0.6) {
+      this.renderScale = Math.max(0.6, this.renderScale - 0.1); this.slowTime = 0; this.applyResolution();
+    } else if (this.fastTime > 15 && this.renderScale < 1) {
+      this.renderScale = Math.min(1, this.renderScale + 0.05); this.fastTime = 0; this.applyResolution();
+    }
   }
   update(v, dt, input) {
     this.time += dt;
     this.sky.material.uniforms.time.value = this.time;
+    this.foliageWind.time.value = this.time * 0.6;
+    this.foliageWind.strength.value = this.reducedMotion ? 0 : this.wind;
+    this.sky.material.uniforms.cloudCover.value = damp(this.sky.material.uniforms.cloudCover.value,
+      ["rain", "overcast", "mist"].includes(this.weather) ? 0.95 : 0.3 + (this.climateVariation || 0.5) * 0.3, 0.09, dt);
+    this.sky.material.uniforms.sunPower.value = damp(this.sky.material.uniforms.sunPower.value,
+      this.weather === "night" ? 0.08 : ["rain", "overcast", "mist"].includes(this.weather) ? 0.12 : 1, 0.09, dt);
     this.updateChunks(-v.z);
     const w = this.targetWeather,
-      t = 1 - Math.exp(-dt * 1.4);
-    this.sky.material.uniforms.top.value.lerp(new T.Color(w.top), t);
-    this.sky.material.uniforms.bottom.value.lerp(new T.Color(w.bottom), t);
-    this.scene.fog.color.lerp(new T.Color(w.fog), t);
+      t = 1 - Math.exp(-dt * 0.09);
+    this.sky.material.uniforms.top.value.lerp(this.tempColor.set(w.top), t);
+    this.sky.material.uniforms.bottom.value.lerp(this.tempColor.set(w.bottom), t);
+    this.scene.fog.color.lerp(this.tempColor.set(w.fog), t);
     this.scene.fog.density = lerp(this.scene.fog.density, w.density, t);
-    this.sunlight.color.lerp(new T.Color(w.sun), t);
-    this.sunlight.intensity = damp(this.sunlight.intensity, w.power, 1.5, dt);
-    this.ambient.intensity = damp(this.ambient.intensity, w.ambient, 1.5, dt);
+    this.sunlight.color.lerp(this.tempColor.set(w.sun), t);
+    this.sunlight.intensity = damp(this.sunlight.intensity, w.power, 0.09, dt);
+    this.ambient.intensity = damp(this.ambient.intensity, w.ambient, 0.09, dt);
     this.renderer.toneMappingExposure = damp(
       this.renderer.toneMappingExposure,
       w.exposure,
-      1.5,
+      0.09,
       dt,
     );
     this.car.position.set(v.x, v.y, v.z);
     this.car.rotation.y = -v.heading;
     this.body.rotation.set(v.pitch, 0, v.roll);
-    this.wheels.forEach((w) => {
+    this.wheels.forEach((w, i) => {
+      w.pivot.position.y = v.wheels[i].height;
       w.pivot.rotation.y = w.front ? -v.steer : 0;
       w.spin.rotation.x = -v.wheelSpin;
     });
-    this.brakeMaterial.emissiveIntensity = input.brake || input.handbrake ? 4 : 0.9;
-    this.contactShadow.position.set(v.x, this.road.terrain(v.x, -v.z) + 0.025, v.z);
+    this.brakeMaterial.emissiveIntensity = (v.gear === 1 ? input.brake : input.throttle) || input.handbrake ? 4 : 0.9;
+    this.reverseMaterial.emissiveIntensity = v.gear === -1 ? 2.5 : 0;
+    this.materials.road.roughness = lerp(0.94, 0.32, this.wetness);
+    this.headlights.forEach(l => l.intensity = damp(l.intensity, this.weather === "night" ? 65 : 28 * this.rainAmount + (this.weather === "mist" ? 20 : 0), 0.12, dt));
+    this.contactShadow.position.set(v.x, this.road.surface(v.x, -v.z) + 0.025, v.z);
     this.contactShadow.rotation.z = v.heading;
     let targetPos = new T.Vector3(),
       look = new T.Vector3();
+    const direction = v.gear === -1 ? -1 : 1;
     const forward = new T.Vector3(Math.sin(v.heading), 0, -Math.cos(v.heading)),
       right = new T.Vector3(Math.cos(v.heading), 0, Math.sin(v.heading));
     if (this.photo) {
@@ -882,22 +939,22 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       targetPos.y += 2.9;
       look.copy(vPosition(v)).addScaledVector(forward, 15);
       look.y += 0.5;
-    } else if (this.mode === "hood") {
+    } else if (this.mode === "hood" && direction === 1) {
       targetPos.copy(vPosition(v)).addScaledVector(forward, 1);
       targetPos.y += 0.76;
       look.copy(targetPos).addScaledVector(forward, 30);
       look.y -= 0.2;
     } else if (this.mode === "wide") {
-      targetPos.copy(vPosition(v)).addScaledVector(forward, -15).addScaledVector(right, 5);
+      targetPos.copy(vPosition(v)).addScaledVector(forward, -15 * direction).addScaledVector(right, 5);
       targetPos.y += 7.2;
-      look.copy(vPosition(v)).addScaledVector(forward, 10);
+      look.copy(vPosition(v)).addScaledVector(forward, 10 * direction);
     } else {
-      targetPos.copy(vPosition(v)).addScaledVector(forward, -8.2);
+      targetPos.copy(vPosition(v)).addScaledVector(forward, -(8.2 + Math.min(1.5, Math.abs(v.u) * 0.04)) * direction);
       targetPos.y += 3.1;
-      look.copy(vPosition(v)).addScaledVector(forward, 9);
+      look.copy(vPosition(v)).addScaledVector(forward, 9 * direction);
       look.y += 0.25;
     }
-    const minY = this.road.terrain(targetPos.x, -targetPos.z) + 1.4;
+    const minY = this.road.surface(targetPos.x, -targetPos.z) + 1.4;
     targetPos.y = Math.max(targetPos.y, minY);
     if (!this.initialized) {
       this.camera.position.copy(targetPos);
@@ -907,10 +964,11 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     const smoothing = this.mode === "hood" && !this.home ? 20 : 4;
     this.camera.position.lerp(targetPos, 1 - Math.exp(-dt * smoothing));
     this.look.lerp(look, 1 - Math.exp(-dt * 6));
+    this.camera.position.y = Math.max(this.camera.position.y, this.road.surface(this.camera.position.x, -this.camera.position.z) + 0.7);
     this.camera.lookAt(this.look);
     this.camera.fov = damp(
       this.camera.fov,
-      this.photo ? 47 : this.home ? 53 : 53 + v.u * 0.21,
+      (innerWidth < innerHeight ? 10 : 0) + (this.photo ? 47 : this.home ? 53 : 53 + (this.reducedMotion ? 0 : Math.abs(v.u) * 0.12)),
       2,
       dt,
     );
@@ -923,14 +981,17 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     this.water.material.uniforms.time.value = this.time;
     this.mountains.position.z = v.z * 0.87;
     this.rain.position.copy(vPosition(v));
+    this.rain.visible = this.rainAmount > 0.015;
+    this.rain.material.opacity = this.rainAmount * 0.38;
     const rp = this.rain.geometry.attributes.position;
-    for (let i = 0; i < rp.count; i += 2) {
+    if (this.rain.visible) for (let i = 0; i < rp.count; i += 2) {
       const y = (rand(i) * 50 - this.time * 22) % 50;
+      rp.setX(i + 1, rp.getX(i) - 0.15 - this.wind * 0.9);
       rp.setY(i, y < 0 ? y + 50 : y);
       rp.setY(i + 1, (y < 0 ? y + 50 : y) - 1.1);
     }
-    rp.needsUpdate = true;
-    if (v.offroad && v.u > 3 && Math.random() < 0.8) {
+    rp.needsUpdate = this.rain.visible;
+    if ((v.offroad || this.wetness > 0.3) && Math.abs(v.u) > 3 && Math.random() < Math.min(1, dt * 45)) {
       const i = this.dustIndex++ % 70;
       this.dustPositions.set([v.x + (Math.random() - 0.5) * 1.8, v.y - 0.45, v.z + 1.5], i * 3);
       this.dustAges[i] = 0;
@@ -940,8 +1001,62 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       if (this.dustAges[i] < 2) this.dustPositions[i * 3 + 1] += dt * 0.4;
       else this.dustPositions[i * 3 + 1] = -1000;
     }
+    this.dust.material.color.set(this.wetness > 0.3 ? 0xc2d5d5 : 0xc2b798);
+    this.dust.material.opacity = this.wetness > 0.3 ? 0.13 : 0.28;
     this.dustGeo.attributes.position.needsUpdate = true;
+    this.updatePeers(dt,v);
     this.renderer.render(this.scene, this.camera);
+  }
+  setPeers(peers) {
+    const ids = new Set(peers.map(p => p.id));
+    for (const [id, remote] of this.remoteCars) if (!ids.has(id)) {
+      this.scene.remove(remote.car); remote.paint.dispose(); remote.brake.dispose(); remote.reverse.dispose();
+      remote.label.material.map.dispose(); remote.label.material.dispose();
+      this.remoteCars.delete(id);
+    }
+    for (const peer of peers) {
+      let remote = this.remoteCars.get(peer.id);
+      if (!remote) {
+        const car = this.car.clone(true), paint = this.paint.clone(), brake = this.brakeMaterial.clone(), reverse = this.reverseMaterial.clone();
+        car.traverse(o => {
+          if (!o.isMesh) return;
+          if (o.material === this.paint) o.material = paint;
+          else if(o.material === this.brakeMaterial) o.material=brake;
+          else if(o.material === this.reverseMaterial) o.material=reverse;
+        });
+        for (const child of [...car.children]) if (child.isLight) car.remove(child);
+        const label = new T.Sprite(new T.SpriteMaterial({map:labelTexture(peer.name,'#143c32','#eee7ce',384,96),depthTest:false,depthWrite:false,toneMapped:false,transparent:true,opacity:0.85}));
+        label.scale.set(3,.75,1); label.position.y=2.1; label.renderOrder=20; car.add(label);
+        car.position.set(peer.x,peer.y,peer.z); car.rotation.y=-peer.h;
+        remote={car,paint,brake,reverse,label,target:peer,received:performance.now()};
+        this.scene.add(car); this.remoteCars.set(peer.id,remote);
+      }
+      remote.paint.color.set(peer.color);
+      remote.brake.emissiveIntensity = peer.u * (peer.u - remote.target.u) < -0.2 ? 4 : 0.9;
+      remote.reverse.emissiveIntensity = peer.u < -0.1 ? 2.5 : 0;
+      remote.target=peer; remote.received=performance.now();
+    }
+  }
+  updatePeers(dt, vehicle) {
+    for (const remote of this.remoteCars.values()) {
+      const p=remote.target, car=remote.car;
+      car.visible=Math.hypot(p.x-vehicle.x,p.z-vehicle.z)<320;
+      if (!car.visible) continue;
+      const labelScale=clamp(Math.hypot(p.x-vehicle.x,p.z-vehicle.z)/16,1,6);
+      remote.label.scale.set(3*labelScale,.75*labelScale,1);
+      remote.label.visible=labelScale<6;
+      const age=Math.min(.18,(performance.now()-remote.received)/1000), t=1-Math.exp(-dt*12);
+      car.position.x=lerp(car.position.x,p.x+Math.sin(p.h)*p.u*age,t);
+      car.position.y=lerp(car.position.y,p.y,t);
+      car.position.z=lerp(car.position.z,p.z-Math.cos(p.h)*p.u*age,t);
+      car.rotation.y+=Math.atan2(Math.sin(-p.h-car.rotation.y),Math.cos(-p.h-car.rotation.y))*t;
+      car.children[0].rotation.set(p.p,0,p.r);
+      for(let i=0;i<4;i++) {
+        const pivot=car.children[i+1]; pivot.position.y=lerp(pivot.position.y,p['w'+i],t);
+        pivot.rotation.y=i%2===0 ? -p.steer : 0;
+        pivot.children[0].rotation.x=-(p.spin+p.u*age/.34);
+      }
+    }
   }
   photograph() {
     this.renderer.render(this.scene, this.camera);
@@ -972,6 +1087,12 @@ function pineGeometry() {
         b = r * sides + ((a + 1) % sides);
       idx.push(i, i + sides, b, b, i + sides, b + sides);
     }
+  const bottom = p.length / 3; p.push(0, -1.5, 0);
+  const top = p.length / 3; p.push(0, 1.65, 0);
+  for (let a = 0; a < sides; a++) {
+    const b = (a + 1) % sides;
+    idx.push(bottom, a, b, top, rings * sides + b, rings * sides + a);
+  }
   const g = new T.BufferGeometry();
   g.setAttribute("position", new T.Float32BufferAttribute(p, 3));
   g.setIndex(idx);
@@ -999,4 +1120,20 @@ function grassGeometry() {
   );
   g.computeVertexNormals();
   return g;
+}
+
+// Closed ground volumes: the upper grid is shared with collision sampling.
+export function closeGround(p, colors, indices, stride, rows) {
+  const count = p.length / 3, top = [...indices];
+  for (let i = 0; i < count; i++) { p.push(p[i * 3], -100, p[i * 3 + 2]); colors.push(...colors.slice(i * 3, i * 3 + 3)); }
+  for (let i = 0; i < top.length; i += 3) indices.push(top[i] + count, top[i + 2] + count, top[i + 1] + count);
+  const boundary = [];
+  for (let j = 0; j < stride; j++) boundary.push(j);
+  for (let i = 1; i <= rows; i++) boundary.push(i * stride + stride - 1);
+  for (let j = stride - 2; j >= 0; j--) boundary.push(rows * stride + j);
+  for (let i = rows - 1; i > 0; i--) boundary.push(i * stride);
+  for (let i = 0; i < boundary.length; i++) {
+    const a = boundary[i], b = boundary[(i + 1) % boundary.length];
+    indices.push(a, a + count, b, b, a + count, b + count);
+  }
 }

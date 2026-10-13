@@ -1,3 +1,5 @@
+import { Multiplayer, cleanName, cleanCode } from "./multiplayer.js";
+import { WeatherCycle, weatherNames, roomWeather } from "./weather.js";
 import { World } from "./world.js";
 import { Vehicle, makeRoad, clamp } from "./physics.js";
 const $ = (s) => document.querySelector(s),
@@ -5,6 +7,7 @@ const $ = (s) => document.querySelector(s),
 let preferences = {
   biome: "alpine",
   weather: "golden",
+  weatherCycle: true,
   seed: 7,
   color: "#efb46e",
   quality: "balanced",
@@ -13,13 +16,15 @@ let preferences = {
 try {
   const saved = JSON.parse(localStorage.getItem("wayfarer-preferences") || "{}");
   if (["alpine", "coast", "desert"].includes(saved.biome)) preferences.biome = saved.biome;
-  if (["golden", "day", "rain", "night"].includes(saved.weather))
+  if (weatherNames.includes(saved.weather))
     preferences.weather = saved.weather;
+  if (typeof saved.weatherCycle === "boolean") preferences.weatherCycle = saved.weatherCycle;
   if (Number.isSafeInteger(saved.seed) && saved.seed >= 0) preferences.seed = saved.seed;
   if (/^#[a-f0-9]{6}$/i.test(saved.color)) preferences.color = saved.color;
   if (["balanced", "high", "low"].includes(saved.quality)) preferences.quality = saved.quality;
   if (Number.isFinite(saved.volume)) preferences.volume = clamp(saved.volume, 0, 100);
 } catch {}
+let climate = new WeatherCycle(preferences.seed, preferences.weather);
 const save = () => {
   try {
     localStorage.setItem("wayfarer-preferences", JSON.stringify(preferences));
@@ -65,6 +70,8 @@ const moods = {
   day: ["Clear daylight", "☼"],
   rain: ["Passing rain", "☂"],
   night: ["Blue hour", "☾"],
+  overcast: ["Cloud drift", "☁"],
+  mist: ["Morning mist", "≋"],
 };
 const paused = () => !!$("dialog[open]") || photo || document.hidden;
 function toast(message) {
@@ -89,13 +96,15 @@ function syncUI() {
   $("#landscape").value = preferences.biome;
   $("#weather").value = preferences.weather;
   $("#quality").value = preferences.quality;
+  $("#weather-cycle").value = String(preferences.weatherCycle);
   $("#volume").value = preferences.volume;
   $("#seed-label").textContent = `ROAD ${String(preferences.seed).padStart(4, "0")}`;
   $$("[data-color]").forEach((b) =>
     b.classList.toggle("selected", b.dataset.color === preferences.color),
   );
 }
-function changeRoad(biome = preferences.biome, newSeed = false) {
+function changeRoad(biome = preferences.biome, newSeed = false, shared = false) {
+  if (multiplayer.active && !shared) return toast("Leave the room to change your route.");
   preferences.biome = biome;
   if (newSeed) preferences.seed = Math.floor(Math.random() * 99999);
   road = makeRoad(preferences.seed, biome);
@@ -109,6 +118,7 @@ function changeRoad(biome = preferences.biome, newSeed = false) {
 }
 function setWeather(w) {
   preferences.weather = w;
+  climate.select(w);
   world.setWeather(w);
   syncUI();
   save();
@@ -144,6 +154,7 @@ function start() {
   if (soundOn) enableAudio();
 }
 function goHome() {
+  if (multiplayer.active) void multiplayer.leave();
   started = false;
   auto = false;
   $("#autodrive").setAttribute("aria-pressed", "false");
@@ -175,6 +186,78 @@ function setPhoto(on) {
     world.orbitDistance = 9;
   } else $("#scene").style.cursor = "default";
 }
+const multiplayer = new Multiplayer({
+  status: message => { $("#room-message").textContent = message; syncRoomUI(); },
+  change: () => syncRoomUI(),
+  peers: peers => { world.setPeers(peers); syncRoomUI(); },
+  room: (meta, slot, spawnS) => {
+    preferences.seed = meta.seed;
+    changeRoad(meta.biome, false, true);
+    vehicle.reset(spawnS);
+    vehicle.x = road.center(spawnS) + (slot % 2 ? -1.85 : 1.85);
+    vehicle.updateSuspension(0, true);
+    world.initialized = false;
+    lastRoomClock = -1;
+    $("#multiplayer-dialog").close();
+    if (!started) start();
+    syncRoomUI();
+    toast("You’re on the same road. Enjoy the drive together.");
+  },
+});
+let lastRoomClock = -1;
+function syncRoomUI() {
+  const active = multiplayer.active;
+  $("#room-form").hidden = active;
+  $("#room-session").hidden = !active;
+  $("#create-room").disabled = multiplayer.pending;
+  $("#join-room").disabled = multiplayer.pending;
+  $("#cancel-room").hidden = !multiplayer.pending;
+  $("#multiplayer").setAttribute("aria-label", active ? "Open multiplayer room" : "Drive together");
+  $("#convoy-badge").hidden = !active;
+  $("#convoy-badge").textContent = active ? `${multiplayer.connected ? "◉" : "○"} ${multiplayer.peers.length + 1}/8 driving together` : "";
+  for (const selector of ["#landscape", "#weather", "#weather-cycle", "#new-road", "#mood"]) $(selector).disabled = active;
+  $$("[data-biome]").forEach(b => b.disabled = active);
+  $("#shared-route-note").hidden = !active;
+  if (active) {
+    $("#active-room-code").textContent = multiplayer.code;
+    const invite = new URL(location.href); invite.search = ""; invite.hash = ""; invite.searchParams.set("room", multiplayer.code);
+    $("#invite-link").value = invite.href;
+    $("#room-players").replaceChildren();
+    const names = [`${multiplayer.name} (you)`, ...multiplayer.peers.map(p=>p.name)];
+    for (const name of names) { const li=document.createElement("li"); li.textContent=name; $("#room-players").append(li); }
+    $("#meet-convoy").disabled = multiplayer.peers.length === 0;
+  }
+}
+$("#multiplayer").addEventListener("click", () => openDialog("#multiplayer-dialog"));
+$("#convoy-badge").addEventListener("click", () => openDialog("#multiplayer-dialog"));
+async function enterRoom(create) {
+  const options = {create,code:$("#room-code").value,name:cleanName($("#driver-name").value),...preferences};
+  await multiplayer.connect(options);
+}
+$("#create-room").addEventListener("click", () => void enterRoom(true));
+$("#join-room").addEventListener("click", () => void enterRoom(false));
+$("#cancel-room").addEventListener("click", () => { void multiplayer.leave(); $("#room-message").textContent = "Connection cancelled. You can try again anytime."; });
+$("#leave-room").addEventListener("click", async () => {
+  await multiplayer.leave();
+  $("#room-message").textContent = "You’re driving solo. Your journey continues.";
+  toast("Back to your own quiet road.");
+});
+$("#copy-invite").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("#invite-link").value); $("#room-message").textContent = "Invite link copied. Share it with your friends."; }
+  catch { $("#invite-link").select(); $("#room-message").textContent = "Copy the selected link to invite a friend."; }
+});
+$("#meet-convoy").addEventListener("click", () => {
+  const peer = multiplayer.peers[0]; if (!peer) return;
+  vehicle.reset(-peer.z - 10);
+  vehicle.x = road.center(-vehicle.z) + (multiplayer.slot % 2 ? -1.85 : 1.85);
+  vehicle.updateSuspension(0,true); world.initialized = false;
+  $("#multiplayer-dialog").close(); toast("Back with your fellow wanderers.");
+});
+const inviteCode = cleanCode(new URL(location.href).searchParams.get("room") || "");
+if (inviteCode) {
+  $("#room-code").value = inviteCode;
+  setTimeout(()=>openDialog("#multiplayer-dialog"),900);
+}
 $("#start").addEventListener("click", start);
 $(".brand").addEventListener("click", (e) => {
   e.preventDefault();
@@ -203,6 +286,11 @@ $$("dialog").forEach((d) => {
 });
 $("#landscape").addEventListener("change", (e) => changeRoad(e.target.value));
 $("#weather").addEventListener("change", (e) => setWeather(e.target.value));
+$("#weather-cycle").addEventListener("change", e => {
+  preferences.weatherCycle = e.target.value === "true";
+  climate.elapsed = 0;
+  save();
+});
 $("#quality").addEventListener("change", (e) => {
   preferences.quality = e.target.value;
   world.setQuality(e.target.value);
@@ -257,7 +345,7 @@ window.addEventListener("keydown", (e) => {
       if (key === "c") camera();
       if (key === "p") setPhoto(true);
       if (key === "r") resetCar();
-      if (key === "escape") openDialog("#pause-dialog");
+      if (key === "escape") { e.preventDefault(); openDialog("#pause-dialog"); }
     } else if (key === "enter" && e.target === document.body) start();
   }
   keys.add(key);
@@ -308,6 +396,7 @@ $("#scene").addEventListener("pointermove", (e) => {
   pointer = { x: e.clientX, y: e.clientY };
 });
 $("#scene").addEventListener("pointerup", () => (pointer = null));
+$("#scene").addEventListener("pointercancel", () => (pointer = null));
 $("#scene").addEventListener(
   "wheel",
   (e) => {
@@ -392,19 +481,44 @@ $("#sound").addEventListener("click", () => {
 let lastInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min((now - lastTime) / 1000, 0.06);
+  if (preferences.quality === "low" && now - lastTime < 30) return;
+  const frameSeconds = Math.max(0, (now - lastTime) / 1000);
+  const dt = Math.min(frameSeconds, 0.06);
   lastTime = now;
   if (document.hidden) return;
   const stopped = paused();
   if (!stopped) {
+    world.adaptQuality(frameSeconds);
+    if (!multiplayer.active && climate.step(Math.min(frameSeconds, 1), preferences.weatherCycle)) {
+      preferences.weather = climate.current;
+      world.setWeather(climate.current);
+      syncUI();
+    }
+  }
+  if (multiplayer.active) {
+    multiplayer.tick(Math.min(frameSeconds, 1), vehicle, preferences.color, stopped);
+    const second = Math.floor(multiplayer.now / 1000);
+    if (second !== lastRoomClock) {
+      lastRoomClock = second;
+      climate = roomWeather(multiplayer.meta.seed, multiplayer.meta.weather, (multiplayer.now-multiplayer.meta.createdAt)/1000);
+      if (preferences.weather !== climate.current) {
+        preferences.weather = climate.current; world.setWeather(climate.current); syncUI();
+      }
+    }
+  }
+  world.wetness = climate.wetness;
+  world.rainAmount = climate.rain;
+  world.wind = climate.wind;
+  world.climateVariation = climate.variation;
+  if (!stopped) {
     accumulator += dt;
     while (accumulator >= 1 / 120) {
       lastInput = !started || auto ? vehicle.autopilot() : manualInput();
-      vehicle.step(1 / 120, lastInput, preferences.weather === "rain");
+      vehicle.step(1 / 120, lastInput, climate.wetness);
       world.resolveCollisions(vehicle);
       accumulator -= 1 / 120;
     }
-    if (Math.abs(vehicle.x - road.center(-vehicle.z)) > 240 || -vehicle.z < -200) {
+    if (Math.abs(vehicle.x - road.center(-vehicle.z)) > 240 || (road.biome === "coast" && vehicle.y < -0.3)) {
       vehicle.reset(Math.max(0, -vehicle.z));
       if (started) toast("A fresh start on the open road.");
     }
@@ -420,13 +534,13 @@ function frame(now) {
       at,
       0.15,
     );
-    audio.motor.frequency.setTargetAtTime(33 + vehicle.u * 2.2 + lastInput.throttle * 13, at, 0.1);
-    audio.harmonic.frequency.setTargetAtTime(66 + vehicle.u * 4.4, at, 0.1);
+    audio.motor.frequency.setTargetAtTime(33 + Math.abs(vehicle.u) * 2.2 + lastInput.throttle * 13, at, 0.1);
+    audio.harmonic.frequency.setTargetAtTime(66 + Math.abs(vehicle.u) * 4.4, at, 0.1);
     audio.motorGain.gain.setTargetAtTime(0.13 + lastInput.throttle * 0.16, at, 0.1);
     audio.windGain.gain.setTargetAtTime(
       0.01 +
-        vehicle.u * 0.002 +
-        (preferences.weather === "rain" ? 0.1 : 0) +
+        Math.abs(vehicle.u) * 0.002 +
+        climate.rain * 0.1 +
         (vehicle.offroad ? 0.06 : 0),
       at,
       0.2,
@@ -434,7 +548,7 @@ function frame(now) {
   }
   hudTime += dt;
   frames++;
-  frameTime += dt;
+  frameTime += frameSeconds;
   if (frameTime > 1) {
     fps = Math.round(frames / frameTime);
     frames = 0;
@@ -442,13 +556,13 @@ function frame(now) {
   }
   if (hudTime > 0.1) {
     hudTime = 0;
-    $("#speed").textContent = Math.round(vehicle.u * 3.6);
+    $("#speed").textContent = Math.round(Math.abs(vehicle.u) * 3.6);
     $("#trip").innerHTML =
       `${(Math.max(0, vehicle.distance - tripStart) / 1000).toFixed(2)} <small>km</small>`;
     $("#gear").textContent =
-      vehicle.u < 0.2 ? "N" : `D${Math.min(6, 1 + Math.floor(vehicle.u / 8))}`;
-    $("#gauge-fill").style.strokeDashoffset = String(300 - clamp(vehicle.u / 57, 0, 1) * 300);
-    const status = vehicle.offroad
+      vehicle.gear === -1 ? "R" : vehicle.u < 0.2 ? "N" : `D${Math.min(6, 1 + Math.floor(vehicle.u / 8))}`;
+    $("#gauge-fill").style.strokeDashoffset = String(300 - clamp(Math.abs(vehicle.u) / 57, 0, 1) * 300);
+    const status = vehicle.gear === -1 ? "REVERSE · TAKE IT SLOW" : vehicle.offroad
       ? "LOOSE SURFACE · REDUCED GRIP"
       : lastInput.handbrake
         ? "HANDBRAKE"
@@ -457,6 +571,13 @@ function frame(now) {
           : "";
     $("#road-status").textContent = status;
     $("#road-status").classList.toggle("show", !!status);
+    $("#weather-status").textContent = `${moods[climate.current][0]} · ${multiplayer.active ? "shared skies" : preferences.weatherCycle ? "evolving skies" : "steady skies"}`;
+    document.body.dataset.room = multiplayer.code || "";
+    document.body.dataset.players = String(multiplayer.active ? multiplayer.peers.length+1 : 1);
+    document.body.dataset.weather = climate.current;
+    document.body.dataset.wetness = climate.wetness.toFixed(3);
+    document.body.dataset.gear = String(vehicle.gear);
+    document.body.dataset.renderScale = world.renderScale.toFixed(2);
     document.body.dataset.speed = vehicle.u.toFixed(3);
     document.body.dataset.distance = vehicle.distance.toFixed(2);
     document.body.dataset.offset = (vehicle.x - road.center(-vehicle.z)).toFixed(2);

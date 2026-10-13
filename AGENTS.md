@@ -20,6 +20,6 @@ Read `PROGRESS.md` and `README.md` at the beginning of project work. Keep `PROGR
 
 ## Verification and publication
 
-Read `.openai/hosting.json` for the existing Site identity. Reuse it; do not create a duplicate Site. The last verified hosted state had version 0 and no live URL. Do not claim deployment or comparative superiority without evidence. Follow applicable Sites tooling for future publication.
+The user selected Firebase Hosting on 13 October 2026. Use `firebase.json` and `.firebaserc`, project/site `wavefinder-2da9d`; Hosting serves only `dist/`; never deploy `work/`. Multiplayer also uses the project’s default Realtime Database in asia-southeast1 and anonymous Auth. Only change and deploy `database.rules.json` when multiplayer requires it, and run the live isolated rule checks after security changes. Keep all unrelated Firebase resources unchanged. The older `.openai/hosting.json` identity is historical and unpublished; do not resume Sites publication unless requested. Record verified deployment results in PROGRESS.md. Do not claim comparative superiority without evidence.
 
 Run relevant checks after implementation changes. Browser checks are needed for rendering or interaction changes; distinguish desktop viewport tests from physical phone or controller tests. Preserve explicit verification limitations from `PROGRESS.md` until they are resolved.

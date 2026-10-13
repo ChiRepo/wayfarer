@@ -35,6 +35,9 @@
       >
       <div class="live-label"><span></span> NOWHERE TO BE. EVERYWHERE TO GO.</div>
       <nav>
+        <button class="icon-button" id="multiplayer" aria-label="Drive together" title="Drive together">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-3a6 6 0 0 1 12 0v3m1-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5"/></svg>
+        </button>
         <button class="icon-button" id="sound" aria-label="Enable sound" title="Sound">
           <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm5 4 5 6m0-6-5 6" /></svg></button
         ><button class="icon-button" id="settings" aria-label="Open settings" title="Settings">
@@ -87,6 +90,8 @@
         ><strong id="trip">0.00 <small>km</small></strong
         ><span id="route-label">ALPINE PASS / GOLDEN HOUR</span>
       </div>
+      <button id="convoy-badge" hidden aria-label="Open convoy room"></button>
+      <div id="weather-status">Golden hour · evolving skies</div>
       <div id="road-status">ON THE OPEN ROAD</div>
       <div class="speedometer">
         <svg viewBox="0 0 180 120">
@@ -103,7 +108,7 @@
         ><button id="pause" aria-label="Pause driving">Ⅱ</button>
       </div>
       <div class="driving-hint" id="driving-hint">
-        <kbd>W</kbd> Accelerate <kbd>S</kbd> Brake <kbd>A</kbd><kbd>D</kbd> Steer
+        <kbd>W</kbd> Accelerate <kbd>S</kbd> Brake / reverse <kbd>A</kbd><kbd>D</kbd> Steer
         <kbd>SPACE</kbd> Handbrake <kbd>R</kbd> Reset
       </div>
       <div class="touch-controls">
@@ -112,7 +117,7 @@
           ><button data-input="right" aria-label="Steer right">→</button>
         </div>
         <div>
-          <button data-input="brake" aria-label="Brake">STOP</button
+          <button data-input="brake" aria-label="Brake and hold to reverse">BRAKE / R</button
           ><button data-input="throttle" aria-label="Accelerate">↑</button>
         </div>
       </div>
@@ -123,6 +128,26 @@
       ><button id="exit-photo">Back to the road <kbd>ESC</kbd></button>
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="multiplayer-dialog">
+      <div class="dialog-heading"><div><span class="eyebrow">A LITTLE COMPANY</span><h2>Wander together.</h2></div><button class="close" aria-label="Close multiplayer">×</button></div>
+      <p class="muted">One road. Up to eight friends. Share the view without bumping each other off course.</p>
+      <div id="room-form">
+        <label for="driver-name">Your driving name<input id="driver-name" maxlength="20" value="Wanderer" autocomplete="nickname" /></label>
+        <button id="create-room" class="primary">Start a shared drive <span>↗</span></button>
+        <div class="room-divider">OR JOIN YOUR FRIENDS</div>
+        <label for="room-code">Room code<input id="room-code" maxlength="12" placeholder="10-character code" autocomplete="off" autocapitalize="characters" spellcheck="false" /></label>
+        <button id="join-room" class="secondary">Join the drive ↗</button>
+        <button id="cancel-room" class="text-button" hidden>Cancel connection</button>
+      </div>
+      <div id="room-session" hidden>
+        <span class="label">YOUR ROOM CODE</span><strong id="active-room-code"></strong>
+        <label for="invite-link">Invite link<input id="invite-link" readonly /></label>
+        <button id="copy-invite" class="secondary">Copy invite link ↗</button>
+        <ul id="room-players"></ul>
+        <div class="room-actions"><button id="meet-convoy" class="secondary">Meet the convoy</button><button id="leave-room" class="text-button">Leave room</button></div>
+      </div>
+      <p id="room-message" class="muted" role="status" aria-live="polite">Rooms last up to 24 hours. No account or email needed.</p>
+    </dialog>
     <dialog id="settings-dialog">
       <div class="dialog-heading">
         <div>
@@ -131,6 +156,7 @@
         </div>
         <button class="close" aria-label="Close settings">×</button>
       </div>
+      <p id="shared-route-note" class="muted" hidden>Your room shares one road and sky. Leave the room to change scenery.</p>
       <label
         >Landscape<select aria-label="Landscape" id="landscape">
           <option value="alpine">The Alpine Pass</option>
@@ -143,8 +169,14 @@
           <option value="day">Clear daylight</option>
           <option value="rain">Passing rain</option>
           <option value="night">Blue hour</option>
+          <option value="overcast">Cloud drift</option>
+          <option value="mist">Morning mist</option>
         </select></label
       ><label
+        >Changing skies<select aria-label="Changing skies" id="weather-cycle">
+          <option value="true">Evolve every 2–4 minutes</option>
+          <option value="false">Keep this weather</option>
+        </select></label><label
         >Vehicle colour
         <div class="swatches">
           <button
@@ -163,7 +195,7 @@
           ></button></div></label
       ><label
         >Graphics<select aria-label="Graphics" id="quality">
-          <option value="balanced">Balanced</option>
+          <option value="balanced">Adaptive (recommended)</option>
           <option value="high">High detail</option>
           <option value="low">Battery saver</option>
         </select></label
@@ -186,7 +218,7 @@
       </div>
       <div class="control-list">
         <p>
-          <span>Accelerate / brake</span
+          <span>Drive / brake & reverse</span
           ><span><kbd>W</kbd><kbd>S</kbd> or <kbd>↑</kbd><kbd>↓</kbd></span>
         </p>
         <p>
@@ -200,7 +232,7 @@
         <p><span>Pause / resume</span><kbd>ESC</kbd></p>
       </div>
       <p class="muted">
-        Gamepad supported: left stick to steer, RT to accelerate, LT to brake. Touch controls appear
+        Gamepad supported: left stick to steer, RT to accelerate, LT to brake and reverse. Hold the brake after stopping to engage reverse; hold the accelerator to stop and shift forward again. Touch controls appear
         on touchscreens. Rain reduces grip; the shoulder is rougher than the road.
       </p>
     </dialog>
