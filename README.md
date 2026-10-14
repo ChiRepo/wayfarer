@@ -98,3 +98,7 @@ This is an original browser game, not a redistribution of Slow Roads or a claim 
 - `RESEARCH.md`: REA provenance, observations, and analysis boundaries.
 
 Three.js r170 is vendored under its MIT license in `dist/vendor/THREE-LICENSE.txt`. The UI requests DM Sans and Manrope through Google Fonts, with local sans-serif fallbacks. No Slow Roads source, textures, models, sounds, or branding are included in the deployed game.
+
+## License
+
+Copyright (c) 2026 Chinmay Chaudhari. Licensed under the [MIT License](LICENSE). Bundled third-party dependencies retain their own license notices.

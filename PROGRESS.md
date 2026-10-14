@@ -4,6 +4,10 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 14 October 2026 — MIT license
+
+Added the standard MIT license in root `LICENSE`, with copyright `2026 Chinmay Chaudhari`, as requested. Linked the license from README and set MIT in the package metadata and lockfile. Existing third-party license notices are retained. Refreshed `main` from GitHub first, preserving the newer README commit `1e84b97`. Checked the license text, JSON metadata, and diff formatting before committing and pushing these changes.
+
 ## 13 October 2026 — GitHub publication
 
 The user requested creating a new GitHub repository named `wayfarer`, committing, and pushing the project. The completed game and Firebase multiplayer release are committed as `e254cee`. GitHub repository: https://github.com/ChiRepo/wayfarer (private). The canonical checkout uses this repository as `origin`, and `main` tracks `origin/main`. Only the tracked original game, deployment configuration, tests, and concise research/progress records will be pushed; the ignored full research workspace and installed dependencies remain local. Private visibility is the default because public visibility was not requested.
