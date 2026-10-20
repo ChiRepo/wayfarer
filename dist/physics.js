@@ -192,9 +192,14 @@ export class Vehicle {
       this.shiftHold += dt;
       if (this.shiftHold >= 0.45) { this.gear *= -1; this.shiftHold = 0; }
     } else this.shiftHold = 0;
-    const steeringLimit = 0.52 / (1 + Math.abs(this.u) * 0.024);
-    this.steer = damp(this.steer, clamp(input.steer, -1, 1) * steeringLimit, 7.5, dt);
-    const grip = (1 - clamp(Number(wet), 0, 1) * 0.28) * (this.offroad ? 0.55 : 1) * Math.max(0.15, this.wheels.filter(w => w.grounded).length / 4);
+    const contact = this.wheels.filter(w => w.grounded).length / 4;
+    const grip = 1.2 * (1 - clamp(Number(wet), 0, 1) * 0.28) * (this.offroad ? 0.55 : 1) * Math.max(0.15, contact);
+    const steeringLimit = 0.58 / (1 + Math.abs(this.u) * 0.024);
+    // Keep full-lock input within available cornering grip at speed. Small inputs
+    // retain their sensitivity, while low-speed turns can still use full lock.
+    const cornerLimit = Math.atan2(9.81 * grip * 0.9 * 2.6, Math.max(this.u * this.u, 1));
+    const steerTarget = clamp(input.steer || 0, -1, 1) * steeringLimit;
+    this.steer = damp(this.steer, input.handbrake ? steerTarget : clamp(steerTarget, -cornerLimit, cornerLimit), 11, dt);
     const mass = 1280,
       lf = 1.22,
       lr = 1.38,
@@ -203,9 +208,9 @@ export class Vehicle {
     const frontSlip = this.steer - Math.atan2(this.v + lf * this.yawRate, speed);
     const rearSlip = -Math.atan2(this.v - lr * this.yawRate, speed);
     const maxFront = mass * 9.81 * 0.53 * grip,
-      maxRear = mass * 9.81 * 0.47 * grip * (input.handbrake ? 0.34 : 1);
-    const front = maxFront * Math.tanh((frontSlip * 65000) / maxFront);
-    const rear = maxRear * Math.tanh((rearSlip * 70000) / maxRear);
+      maxRear = mass * 9.81 * 0.47 * grip * (input.handbrake ? 0.34 : 1.12);
+    const front = maxFront * Math.tanh((frontSlip * 85000) / maxFront);
+    const rear = maxRear * Math.tanh((rearSlip * 100000) / maxRear);
     const drive = this.gear === 1 ? throttle : brake;
     const stop = this.gear === 1 ? brake : throttle;
     const engine = drive * (this.gear === 1 ? 6.4 : -3.4) * Math.max(0.15, 1 - Math.abs(this.u) / (this.gear === 1 ? 57 : 9));
@@ -220,6 +225,13 @@ export class Vehicle {
     if (this.u > 2) {
       this.v += ((front + rear) / mass - this.u * this.yawRate) * dt;
       this.yawRate += ((lf * front - lr * rear) / inertia) * dt;
+      if (!input.handbrake && contact > 0) {
+        // Arcade stability assistance keeps the rear wheels following the turn
+        // and removes lingering sideways motion when the driver straightens up.
+        const desiredYaw = this.u * Math.tan(this.steer) / (lf + lr);
+        this.yawRate = damp(this.yawRate, desiredYaw, 5 * grip * contact, dt);
+        this.v = damp(this.v, lr * this.yawRate, 7 * grip * contact, dt);
+      }
     } else {
       this.v = damp(this.v, 0, 9, dt);
       this.yawRate = damp(this.yawRate, (this.u * Math.tan(this.steer)) / (lf + lr), 12, dt);

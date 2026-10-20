@@ -132,3 +132,48 @@ test("surface height matches triangle interpolation and stays continuous at chun
   const expected = h11 + (1-u)*(r.terrainVertex(r.center(84)+a,84)-h11) + (1-t)*(r.terrainVertex(r.center(80)+b,80)-h11);
   assert.ok(Math.abs(r.terrain(x,s)-expected) < 1e-9);
 });
+
+// An open, flat driving pad isolates handling from roadside obstacles and edges.
+function handlingCar(speed) {
+  let car;
+  const road = { center: () => car?.x || 0, heading: () => 0, surface: () => 0 };
+  car = new Vehicle(road);
+  car.u = speed;
+  return car;
+}
+test("normal sharp turns stay aligned and settle after steering release", () => {
+  for (const wet of [false, true]) for (const speed of [10, 20, 30, 45]) {
+    const car = handlingCar(speed);
+    let peakSlip = 0;
+    run(car, 2, () => {
+      peakSlip = Math.max(peakSlip, Math.abs(Math.atan2(car.v, car.u)));
+      return { ...neutral, throttle: 0.3, steer: 1 };
+    }, wet);
+    assert.ok(peakSlip < 6 * Math.PI / 180, `speed=${speed} wet=${wet} slip=${peakSlip}`);
+    assert.ok(car.heading > 0.2, 'Full steering must still produce a useful turn');
+    run(car, 1, neutral, wet);
+    assert.ok(Math.abs(car.v) < 0.15, 'Sideways motion must stop after release');
+    assert.ok(Math.abs(car.yawRate) < 0.02, 'Car must stop rotating after release');
+  }
+});
+test("steering reversals are smooth, responsive, and retain wet-road differences", () => {
+  const dry = handlingCar(20), wet = handlingCar(20);
+  run(dry, 1, { ...neutral, steer: 1 });
+  run(wet, 1, { ...neutral, steer: 1 }, true);
+  assert.ok(dry.heading > wet.heading * 1.15, 'Rain must still reduce cornering grip');
+  const oldSteer = dry.steer, oldYaw = dry.yawRate;
+  dry.step(1 / 120, { ...neutral, steer: -1 });
+  assert.ok(dry.steer > 0 && dry.steer < oldSteer, 'Steering must blend through a reversal');
+  assert.ok(Math.abs(dry.yawRate - oldYaw) < 0.1, 'Yaw must not snap');
+  run(dry, 0.5, { ...neutral, steer: -1 });
+  assert.ok(dry.yawRate < -0.2, 'Car must follow the opposite turn promptly');
+  assert.ok(Math.abs(dry.v) < 1, 'Changing direction must not start a slide');
+});
+test("handbrake permits an intentional slide and releasing it restores control", () => {
+  const car = handlingCar(25);
+  run(car, 0.8, { ...neutral, throttle: 1, steer: 1, handbrake: true });
+  assert.ok(Math.abs(car.v) > 1, 'Handbrake should still break rear traction');
+  run(car, 1, neutral);
+  assert.ok(Math.abs(car.v) < 0.2);
+  assert.ok(Math.abs(car.yawRate) < 0.03);
+});

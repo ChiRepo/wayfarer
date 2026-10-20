@@ -35,6 +35,12 @@ Firebase Realtime Database lives in `asia-southeast1`. Rules deny room-directory
 
 `npm ci` installs development dependencies; `npm run build:firebase` rebuilds the vendored browser client from `src/firebase-entry.js`. `npm run test:multiplayer:live` performs 22 live checks using two disposable identities and an isolated room, then deletes its test data. It contacts the configured real Firebase project. The ordinary `npm test` stays offline. Java-based emulators were not used; the local machine has Java 8.
 
+## 20 October handling update
+
+Normal steering now uses stronger tire grip, faster smooth steering response, and stability assistance to reduce sideways sliding. Steering is limited by available grip at high speed; low-speed turns retain more steering angle. Releasing steering quickly settles the car. Rain and off-road surfaces still reduce grip, and the handbrake still allows an intentional slide.
+
+Three added regression checks cover dry/wet cornering at multiple speeds, steering reversals and recovery, and regaining control after handbrake use.
+
 ## 13 October update
 
 - Ground is closed into solid volumes, and contact sampling matches its rendered triangles. Terrain chunk joins remain continuous. Tires sample four contact points; spring/damper forces support the body, with gravity, suspension travel, bump stops, and independent pitch/roll response.
@@ -78,7 +84,7 @@ npm test
 npm run check
 ```
 
-Nineteen automated checks cover seeded terrain continuity, acceleration/braking, consistent fixed-step integration, three-minute autodrive runs for each landscape in dry and wet conditions, extreme handling stability, reset, impact response, reverse shifting and steering, four-wheel ground contact and suspension settling, triangle-matched terrain seams, closed mesh topology, and timed weather evolution/drying. Browser checks covered startup, manual acceleration, reset, pause, autodrive, scenery/weather/paint changes, camera modes, photo rendering, and the mobile layout/touch accelerator. The desktop preview reported around 60 FPS on the development machine; this is not a cross-device benchmark. Multiplayer passed 22 live rules/integration checks, and two clients using the live backend displayed companion cars and matching weather. The user confirmed fresh room creation on the public site in their regular browser. Codex's in-app browser could create the initial public session but later fresh public sign-ins failed at the browser fetch layer; the same local client and direct sign-in with the public Origin/Referer succeeded. A two-device public invitation join remains unverified.
+Twenty-two automated checks cover seeded terrain continuity, acceleration/braking, consistent fixed-step integration, three-minute autodrive runs for each landscape in dry and wet conditions, extreme handling stability, reset, impact response, reverse shifting and steering, four-wheel ground contact and suspension settling, triangle-matched terrain seams, closed mesh topology, and timed weather evolution/drying. Browser checks covered startup, manual acceleration, reset, pause, autodrive, scenery/weather/paint changes, camera modes, photo rendering, and the mobile layout/touch accelerator. The desktop preview reported around 60 FPS on the development machine; this is not a cross-device benchmark. Multiplayer passed 22 live rules/integration checks, and two clients using the live backend displayed companion cars and matching weather. The user confirmed fresh room creation on the public site in their regular browser. Codex's in-app browser could create the initial public session but later fresh public sign-ins failed at the browser fetch layer; the same local client and direct sign-in with the public Origin/Referer succeeded. A two-device public invitation join remains unverified.
 
 PNG capture produced a valid 1280 × 720 image in the browser. The in-app browser's automated download interface timed out, so native file saving remains unverified there. The preview supports the ordinary image context menu as a fallback. WebGL 2 is required. Physical phone and gamepad testing remain outstanding.
 

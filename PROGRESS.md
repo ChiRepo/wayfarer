@@ -4,6 +4,14 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 20 October 2026 — Reduced drifting and smoother steering
+
+Completed the handling adjustment requested on 16 October: increased tire grip/cornering stiffness and rear traction, faster damped steering, grip-limited high-speed steering, and grounded stability assistance for yaw and lateral motion. Low-speed steering has more available lock. Handbrake input deliberately bypasses the assistance; wet/off-road grip differences remain.
+
+Verified all 22 offline tests and five syntax checks. Added regression coverage for full-lock turns at 10/20/30/45 m/s in dry/wet conditions, steering release/reversal, and handbrake recovery. On an isolated flat driving pad at an initial 20 m/s with a two-second full-steer input, peak body sideslip fell from 34.6 to 0.32 degrees dry and from 26.26 to 0.21 degrees wet. These are simulation checks, not physical automotive measurements. Browser checks covered dry steering reversals, wet steering at approximately 75 km/h, reset, and autodrive; no browser errors were observed. Physical controller/device checks remain outstanding.
+
+Firebase Hosting deployment succeeded, and the published physics.js SHA-256 matches the canonical local file. Source and verification notes are saved in this checkpoint for pushing to the existing GitHub main branch. Multiplayer backend/rules were unchanged. Local browser QA used port 4174 because port 4173 was serving another application when the work began.
+
 ## 14 October 2026 — MIT license
 
 Added the standard MIT license in root `LICENSE`, with copyright `2026 Chinmay Chaudhari`, as requested. Linked the license from README and set MIT in the package metadata and lockfile. Existing third-party license notices are retained. Refreshed `main` from GitHub first, preserving the newer README commit `1e84b97`. Checked the license text, JSON metadata, and diff formatting before committing and pushing these changes.
