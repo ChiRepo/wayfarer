@@ -1,3 +1,10 @@
+export const scenarios = {
+  current: { name: 'Your current road' },
+  alpine: { name: 'Alpine daylight', biome: 'alpine', weather: 'day', seed: 72 },
+  rain: { name: 'Coastal rain', biome: 'coast', weather: 'rain', seed: 25 },
+  night: { name: 'Desert after dark', biome: 'desert', weather: 'night', seed: 49 },
+  track: { name: 'Racing road', biome: 'alpine', weather: 'day', seed: 97752 },
+};
 export const challenges = {
   sprint: { name: 'Horizon Sprint', seconds: 90, distance: 750, description: 'Cover 750 metres in 90 seconds. Keep moving forward and follow the road.' },
   race: { name: 'Shared Road Race', seconds: 120, distance: 1500, description: 'Race 1500 metres with friends. Car contact is enabled.' },

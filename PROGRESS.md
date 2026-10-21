@@ -4,6 +4,14 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 21 October 2026 — Steering sensitivity correction and manual scenarios
+
+Fixed saturated steering input: previously digital full-lock hit the same grip limit at most sensitivity settings. Manual sensitivity now scales the available angle after limiting and controls response speed; 2.00× reaches the safe maximum. Preserved the existing autopilot mapping. Added a regression measuring sustained heading changes at 10, 20 and 35 m/s across 0.25×, 1.00× and 2.00×.
+
+Added visible Manual mini-games buttons to welcome and free driving. The chooser offers current road, Alpine daylight, Coastal rain, Desert after dark and Racing road for all three challenges. Presets set deterministic routes and initial weather, disable weather cycling, and retain that scenery when returning to free driving; HUD identifies the scenario. Keyboard/touch/gamepad remain manual and autodrive is disabled during challenges.
+
+Verification: 33 offline tests and six syntax checks pass. Browser verified both new launch buttons, coastal rain selection and sprint countdown, manual acceleration to 38 km/h, scenario HUD, end/results and return to free driving. No captured console errors. Physical devices/controllers remain untested. Firebase Hosting deployment succeeded at https://wavefinder-2da9d.web.app; all 13 deployed files match local hashes. The published launcher and scenario chooser were verified in browser. Screenshot: work/qa/manual-scenarios-release.png.
+
 ## 21 October 2026 — Release verification and sensitivity
 
 Added persistent 0.25×–2.00× steering sensitivity with a live numeric output for keyboard, touch and gamepad. Both input gain and response smoothing use the setting; the high-speed steering limit remains. Verified saved 1.35× after reload and fixed narrow-screen label wrapping. Bumped module/style versions to avoid stale assets.

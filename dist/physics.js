@@ -235,12 +235,17 @@ export class Vehicle {
     const contact = this.wheels.filter(w => w.grounded).length / 4;
     const grip = 1.2 * (1 - clamp(Number(wet), 0, 1) * 0.28) * Math.max(0.15, contact);
     const steeringLimit = 0.58 / (1 + Math.abs(this.u) * 0.024);
-    // Keep full-lock input within available cornering grip at speed. Small inputs
-    // retain their sensitivity, while low-speed turns can still use full lock.
+    // Scale the available wheel angle AFTER grip limiting, so digital full-lock
+    // does not collapse every sensitivity setting to the same cornering angle.
     const cornerLimit = Math.atan2(9.81 * grip * 0.9 * 2.6, Math.max(this.u * this.u, 1));
-    const sensitivity = Number.isFinite(input.sensitivity) ? clamp(input.sensitivity, 0.25, 2) : 1;
-    const steerTarget = clamp((input.steer || 0) * sensitivity, -1, 1) * steeringLimit;
-    this.steer = damp(this.steer, input.handbrake ? steerTarget : clamp(steerTarget, -cornerLimit, cornerLimit), 11 * sensitivity, dt);
+    const manualSensitivity = Number.isFinite(input.sensitivity);
+    const sensitivity = manualSensitivity ? clamp(input.sensitivity, 0.25, 2) : 1;
+    const authority = manualSensitivity ? sensitivity / 2 : 1;
+    const availableAngle = input.handbrake ? steeringLimit : Math.min(steeringLimit, cornerLimit);
+    const rawInput = clamp(input.steer || 0, -1, 1);
+    const steerTarget = manualSensitivity ? rawInput * availableAngle * authority
+      : clamp(rawInput * steeringLimit, -availableAngle, availableAngle);
+    this.steer = damp(this.steer, steerTarget, 11 * sensitivity, dt);
     const mass = 1280,
       lf = 1.22,
       lr = 1.38,

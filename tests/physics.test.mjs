@@ -232,3 +232,16 @@ test("sensitivity adjusts response without exceeding safe steering limits", () =
     assert.ok(Math.abs(v.steer) <= .58);
   }
 });
+
+
+test("held keyboard and touch steering retain sensitivity differences at road speeds", () => {
+  for (const speed of [10, 20, 35]) {
+    const turns = [.25, 1, 2].map(sensitivity => {
+      const v = handlingCar(speed);
+      run(v, 1.5, {...neutral, steer:1, sensitivity});
+      return Math.abs(v.heading);
+    });
+    assert.ok(turns[1] > turns[0] * 2, `${speed}: low vs medium ${turns}`);
+    assert.ok(turns[2] > turns[1] * 1.3, `${speed}: medium vs high ${turns}`);
+  }
+});

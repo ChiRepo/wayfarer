@@ -1,8 +1,8 @@
-import { Challenge, RoadRace, challenges } from "./challenges.js?v=20261021c";
-import { Multiplayer, cleanName, cleanCode } from "./multiplayer.js?v=20261021c";
-import { WeatherCycle, weatherNames, roomWeather } from "./weather.js?v=20261021c";
-import { World } from "./world.js?v=20261021c";
-import { Vehicle, makeRoad, clamp } from "./physics.js?v=20261021c";
+import { Challenge, RoadRace, challenges, scenarios } from "./challenges.js?v=20261021d";
+import { Multiplayer, cleanName, cleanCode } from "./multiplayer.js?v=20261021d";
+import { WeatherCycle, weatherNames, roomWeather } from "./weather.js?v=20261021d";
+import { World } from "./world.js?v=20261021d";
+import { Vehicle, makeRoad, clamp } from "./physics.js?v=20261021d";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 let preferences = {
@@ -308,7 +308,7 @@ function syncChallenge() {
   document.body.classList.toggle("challenging", !!challenge);
   if (!challenge) return;
   const config = challenges[challenge.kind];
-  $("#challenge-name").textContent = config.name;
+  $("#challenge-name").textContent = config.name + (challenge.scenarioName ? ` · ${challenge.scenarioName}` : "");
   $("#challenge-value").textContent = challenge.countdown > 0 ? `Ready · ${Math.ceil(challenge.countdown)}` : `${Math.max(0, config.seconds - challenge.elapsed).toFixed(1)}s`;
   $("#challenge-detail").textContent = config.distance ? `${Math.min(config.distance, Math.floor(challenge.progress))} / ${config.distance} m` : `${Math.floor(challenge.score)} pts · ${challenge.streak.toFixed(1)}s ${challenge.kind === "drift" ? "drift" : "clean"}`;
   $("#challenge-progress").value = config.distance ? challenge.progress / config.distance : challenge.elapsed / config.seconds;
@@ -335,16 +335,31 @@ function beginChallenge(kind) {
   if (!started) start();
   auto = false;
   $("#autodrive").setAttribute("aria-pressed", "false");
-  vehicle.reset(Math.max(0, -vehicle.z));
+  challenge = null;
+  const scenario = scenarios[$("#game-scenario").value] || scenarios.current;
+  if (scenario.biome) {
+    preferences.seed = scenario.seed;
+    preferences.weatherCycle = false;
+    changeRoad(scenario.biome);
+    climate = new WeatherCycle(scenario.seed, scenario.weather);
+    setWeather(scenario.weather);
+  }
+  vehicle.reset(scenario.biome ? 0 : Math.max(0, -vehicle.z));
   lastChallenge = kind;
   challenge = new Challenge(kind, -vehicle.z);
+  challenge.scenarioName = scenario.name;
   keys.clear(); touch.clear(); accumulator = 0;
   syncChallenge();
 }
-$("#games").addEventListener("click", () => {
+function openGames() {
   $("#games-note").textContent = multiplayer.active || multiplayer.pending ? "Leave your shared drive to play these solo challenges." : "Manual driving only. Reset ends the attempt. Escape or × closes this menu.";
   $$("[data-challenge]").forEach(b => b.disabled = multiplayer.active || multiplayer.pending);
   openDialog("#games-dialog");
+}
+for (const id of ["#games", "#manual-games", "#drive-games"]) $(id).addEventListener("click", openGames);
+$("#game-scenario").addEventListener("change", e => {
+  const descriptions = {current:"Keep your current road and weather.",alpine:"Clear mountain bends. Practice a smooth racing line.",rain:"Wet coastal corners with reduced rain grip. Brake early.",night:"Desert roads under blue-hour light. Watch the road ahead.",track:"Seeded sweepers, straights and chicanes in clear daylight."};
+  $("#scenario-description").textContent = descriptions[e.target.value];
 });
 $$("[data-challenge]").forEach(b => b.addEventListener("click", () => beginChallenge(b.dataset.challenge)));
 $("#end-challenge").addEventListener("click", () => endChallenge("Attempt ended. The open road is still yours."));
