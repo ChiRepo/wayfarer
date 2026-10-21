@@ -33,3 +33,12 @@ test('cancelling during initialization never claims a room afterwards',async()=>
  await client.leave();release();await joining;
  assert.equal(client.active,false);assert.equal(client.pending,false);
 });
+test('paused racers ghost but finished results retain their race identifier',async()=>{
+ const sent=[];
+ const client=new Multiplayer({status(){}});
+ client.sdk={set:async(ref,payload)=>sent.push(payload)};
+ client.raceId=10000;client.isPaused=true;
+ client.publish({x:0});await Promise.resolve();assert.equal(sent.at(-1).raceId,0);
+ client.finish=30000;client.publish({x:0});await Promise.resolve();
+ assert.equal(sent.at(-1).raceId,10000);assert.equal(sent.at(-1).finish,30000);
+});

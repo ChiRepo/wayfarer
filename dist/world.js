@@ -1,5 +1,5 @@
 import * as T from "./vendor/three.module.js";
-import { clamp, damp, lerp, TERRAIN_OFFSETS } from "./physics.js";
+import { clamp, damp, lerp, TERRAIN_OFFSETS } from "./physics.js?v=20261021c";
 const rand = (n) => {
   const r = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return r - Math.floor(r);
@@ -155,7 +155,19 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
         transformed.x += sin(swayTime + instanceMatrix[3].x * .07 + instanceMatrix[3].z * .04) * swayStrength * max(position.y + 1.5, 0.) * .08;
         #endif`);
     };
+    // One small facade atlas is shared by every streamed settlement.
+    const facade = document.createElement('canvas'); facade.width=64; facade.height=128;
+    const fc=facade.getContext('2d'); fc.fillStyle='#d5ccba'; fc.fillRect(0,0,64,128);
+    for(let y=8;y<128;y+=24) for(let x=8;x<64;x+=24) {
+      fc.fillStyle=(x+y)%3 ? '#435965' : '#e3bd78'; fc.fillRect(x,y,12,15);
+      fc.fillStyle='#b3a58d'; fc.fillRect(x-2,y+15,16,3);
+    }
+    this.materials.building = new T.MeshStandardMaterial({map:new T.CanvasTexture(facade),roughness:.9});
+    this.materials.roof = new T.MeshStandardMaterial({color:0x79574b,roughness:1});
+    this.materials.curb = new T.MeshStandardMaterial({color:0xffffff,roughness:1});
     this.geometries = {
+      building: new T.BoxGeometry(1,1,1),
+      roof: new T.ConeGeometry(.75,.55,4),
       pine: pineGeometry(),
       trunk: new T.CylinderGeometry(0.08, 0.13, 1, 5),
       rock: new T.IcosahedronGeometry(1, 1),
@@ -326,8 +338,18 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       group.add(
         this.ribbon(start, 160, side * 4.65 - 0.06, side * 4.65 + 0.06, this.materials.edge, 0.032),
       );
-    for (let i = 0; i < 10; i++)
+    if (!road.circuit) for (let i = 0; i < 10; i++)
       group.add(this.ribbon(start + i * 16, 7, -0.065, 0.065, this.materials.center, 0.035));
+    if (road.circuit) {
+      const curbs=new T.InstancedMesh(this.geometries.building,this.materials.curb,80);
+      for(let i=0;i<80;i++) {
+        const s=start+Math.floor(i/2)*4+2, side=i%2 ? -1 : 1;
+        dummy.position.set(road.center(s)+side*4.95,road.elevation(s)+.04,-s);
+        dummy.rotation.set(0,-road.heading(s),0);dummy.scale.set(.4,.06,4.15);dummy.updateMatrix();
+        curbs.setMatrixAt(i,dummy.matrix);curbs.setColorAt(i,color.set(Math.floor(i/2)%2 ? 0xe8e1d0 : 0xbb493f));
+      }
+      group.add(curbs);
+    }
     const trees = biome === "desert" ? 12 : 75;
     const foliage = new T.InstancedMesh(this.geometries.pine, this.materials.foliage, trees * 3),
       trunks = new T.InstancedMesh(this.geometries.trunk, this.materials.bark, trees);
@@ -339,6 +361,7 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       const s = start + rand(n) * 160,
         side = rand(n + 1) > 0.5 ? 1 : -1;
       let d = side * (9 + Math.pow(rand(n + 2), 1.8) * 130);
+      if (((index%12)+12)%12<=3 && Math.abs(d)<65) d=Math.sign(d)*(65+Math.abs(d));
       if (biome === "coast") d = -Math.abs(d);
       const x = road.center(s) + d,
         y = road.terrain(x, s),
@@ -475,6 +498,27 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       group.add(sign);
       group.userData.obstacles.push({ x: road.center(s) + 7, z: -s, r: 0.12 });
     }
+    const district = ((index % 12)+12)%12;
+    if (district <= 3) {
+      const city = district >= 2, count = city ? 24 : 10;
+      const houses = new T.InstancedMesh(this.geometries.building,this.materials.building,count);
+      const roofs = new T.InstancedMesh(this.geometries.roof,this.materials.roof,city ? 0 : count);
+      houses.castShadow=true; houses.receiveShadow=true;
+      for(let i=0;i<count;i++) {
+        const s=start+12+(i%Math.ceil(count/2))*130/Math.ceil(count/2);
+        const side=biome==='coast' ? -1 : i%2 ? -1 : 1;
+        const x=road.center(s)+side*(city ? 28+(i%3)*14 : 22+(i%3)*9);
+        const h=city ? 12+rand(i+index*39)*27 : 3.4+rand(i+index*39)*2.3;
+        const width=city ? 8 : 6, depth=city ? 9 : 6;
+        const ground=road.terrain(x,s);
+        dummy.position.set(x,ground+h/2-1,-s); dummy.rotation.set(0,0,0); dummy.scale.set(width,h+2,depth); dummy.updateMatrix();
+        houses.setMatrixAt(i,dummy.matrix);
+        color.setHSL(.08+rand(i+index)*.08,.12,.6+rand(i)*.3); houses.setColorAt(i,color);
+        if(!city) { dummy.position.y=ground+h+.7; dummy.scale.set(width,3,depth); dummy.rotation.y=Math.PI/4; dummy.updateMatrix(); roofs.setMatrixAt(i,dummy.matrix); }
+        group.userData.obstacles.push({x,z:-s,r:width*.58});
+      }
+      group.add(houses,roofs);
+    }
     this.scene.add(group);
     this.chunks.set(index, group);
   }
@@ -498,7 +542,10 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
         this.disposeChunk(g);
         this.chunks.delete(i);
       }
-    for (let i = current - 2; i <= current + 9; i++) if (!this.chunks.has(i)) this.createChunk(i);
+    // Collision-critical neighbours are immediate; distant scenery streams one
+    // chunk per frame to avoid rebuilding a whole horizon during camera motion.
+    for (let i=current-1;i<=current+1;i++) if(!this.chunks.has(i)) this.createChunk(i);
+    for (let i=current-2;i<=current+9;i++) if(!this.chunks.has(i)) { this.createChunk(i); break; }
   }
   resolveCollisions(v) {
     let hit = false;
@@ -631,6 +678,14 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     this.body.add(cabin);
     const roof = mesh(new T.BoxGeometry(1.22, 0.055, 0.97), this.paint, 0, 0.835, 0.08);
     this.body.add(roof);
+    // Rigid sport-touring silhouette: skirts, splitter and a supported rear wing.
+    this.body.add(mesh(new T.BoxGeometry(1.9,.07,.4),black,0,-.26,-2.18));
+    this.body.add(mesh(new T.BoxGeometry(1.9,.08,.42),this.paint,0,.39,1.98));
+    for(const side of [-1,1]) {
+      this.body.add(mesh(new T.BoxGeometry(.08,.27,.12),black,side*.63,.24,1.98));
+      this.body.add(mesh(new T.BoxGeometry(.12,.16,2.5),this.paint,side*.98,-.23,0));
+      this.body.add(mesh(new T.BoxGeometry(.46,.045,.07),chrome,side*.57,.1,-2.22));
+    }
     for (const side of [-1, 1]) {
       const pillar = mesh(
         new T.BoxGeometry(0.055, 0.77, 0.055),
@@ -803,6 +858,20 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     );
     this.scene.add(this.dust);
     this.dustIndex = 0;
+    const puff=document.createElement('canvas'); puff.width=puff.height=32;
+    const pc=puff.getContext('2d'), gradient=pc.createRadialGradient(16,16,0,16,16,16);
+    gradient.addColorStop(0,'rgba(255,255,255,.65)'); gradient.addColorStop(1,'rgba(255,255,255,0)');
+    pc.fillStyle=gradient;pc.fillRect(0,0,32,32);
+    this.dust.material.map=new T.CanvasTexture(puff);
+    this.dust.material.size=.9;
+    this.dust.frustumCulled=false;
+    this.dustGeo.setAttribute('life',new T.BufferAttribute(new Float32Array(70),1));
+    this.dust.material.onBeforeCompile=shader=>{
+      shader.vertexShader='attribute float life; varying float fade;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('gl_PointSize = size;', 'fade=life; gl_PointSize = size * (2.0-life);');
+      shader.fragmentShader='varying float fade;\n'+shader.fragmentShader;
+      shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>','diffuseColor.a *= fade;\n#include <opaque_fragment>');
+    };
   }
   setWeather(weather) {
     this.weather = weather;
@@ -906,9 +975,10 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     );
     this.car.position.set(v.x, v.y, v.z);
     this.car.rotation.y = -v.heading;
-    this.body.rotation.set(v.pitch, 0, v.roll);
+    this.body.rotation.x=damp(this.body.rotation.x,clamp(v.pitch,-.23,.23),12,dt);
+    this.body.rotation.z=damp(this.body.rotation.z,clamp(v.roll,-.13,.13),12,dt);
     this.wheels.forEach((w, i) => {
-      w.pivot.position.y = v.wheels[i].height;
+      w.pivot.position.y = damp(w.pivot.position.y,clamp(v.wheels[i].height,-.55,-.12),20,dt);
       w.pivot.rotation.y = w.front ? -v.steer : 0;
       w.spin.rotation.x = -v.wheelSpin;
     });
@@ -920,6 +990,9 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
     this.contactShadow.rotation.z = v.heading;
     let targetPos = new T.Vector3(),
       look = new T.Vector3();
+    this.cameraSpeed = damp(this.cameraSpeed || 0, Math.abs(v.u), 2.4, dt);
+    this.cameraTurn = damp(this.cameraTurn || 0, clamp(v.yawRate, -0.5, 0.5), 3, dt);
+    const pace = this.reducedMotion ? 0 : clamp(this.cameraSpeed / 45, 0, 1);
     const direction = v.gear === -1 ? -1 : 1;
     const forward = new T.Vector3(Math.sin(v.heading), 0, -Math.cos(v.heading)),
       right = new T.Vector3(Math.cos(v.heading), 0, Math.sin(v.heading));
@@ -944,14 +1017,22 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       targetPos.y += 0.76;
       look.copy(targetPos).addScaledVector(forward, 30);
       look.y -= 0.2;
+    } else if (this.mode === "aerial") {
+      targetPos.copy(vPosition(v)).addScaledVector(forward,-12).addScaledVector(right,8);
+      targetPos.y+=23; look.copy(vPosition(v)).addScaledVector(forward,12);
+    } else if (this.mode === "trackside") {
+      const anchor=Math.floor(-v.z/100)*100+65;
+      targetPos.set(this.road.center(anchor)+15,this.road.surface(this.road.center(anchor)+15,anchor)+3,-anchor);
+      look.copy(vPosition(v));
     } else if (this.mode === "wide") {
       targetPos.copy(vPosition(v)).addScaledVector(forward, -15 * direction).addScaledVector(right, 5);
       targetPos.y += 7.2;
       look.copy(vPosition(v)).addScaledVector(forward, 10 * direction);
     } else {
-      targetPos.copy(vPosition(v)).addScaledVector(forward, -(8.2 + Math.min(1.5, Math.abs(v.u) * 0.04)) * direction);
-      targetPos.y += 3.1;
-      look.copy(vPosition(v)).addScaledVector(forward, 9 * direction);
+      targetPos.copy(vPosition(v)).addScaledVector(forward, -(7.3 + pace * 1.8) * direction);
+      targetPos.y += 2.7 - pace * 0.55;
+      look.copy(vPosition(v)).addScaledVector(forward, (10 + pace * 9) * direction);
+      if (!this.reducedMotion) look.addScaledVector(right, this.cameraTurn * 3);
       look.y += 0.25;
     }
     const minY = this.road.surface(targetPos.x, -targetPos.z) + 1.4;
@@ -961,15 +1042,19 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       this.look.copy(look);
       this.initialized = true;
     }
-    const smoothing = this.mode === "hood" && !this.home ? 20 : 4;
+    const cameraState = this.photo ? "photo" : this.home ? "home" : this.mode;
+    if (this.lastCameraState !== cameraState) { this.cameraBlend = 0; this.lastCameraState = cameraState; }
+    this.cameraBlend = Math.min(1, (this.cameraBlend || 0) + dt / 1.2);
+    const blend = this.cameraBlend * this.cameraBlend * (3 - 2 * this.cameraBlend);
+    const smoothing = this.mode === "hood" && !this.home && !this.photo ? 4 + 16 * blend : 5;
     this.camera.position.lerp(targetPos, 1 - Math.exp(-dt * smoothing));
     this.look.lerp(look, 1 - Math.exp(-dt * 6));
     this.camera.position.y = Math.max(this.camera.position.y, this.road.surface(this.camera.position.x, -this.camera.position.z) + 0.7);
     this.camera.lookAt(this.look);
     this.camera.fov = damp(
       this.camera.fov,
-      (innerWidth < innerHeight ? 10 : 0) + (this.photo ? 47 : this.home ? 53 : 53 + (this.reducedMotion ? 0 : Math.abs(v.u) * 0.12)),
-      2,
+      (innerWidth < innerHeight ? 10 : 0) + (this.photo ? 47 : this.home ? 53 : 53 + (this.reducedMotion ? 0 : pace * 12)),
+      1.8,
       dt,
     );
     this.camera.updateProjectionMatrix();
@@ -991,19 +1076,23 @@ void main(){vec3 d=normalize(vDirection);float h=pow(max(d.y,0.),.55);vec3 c=mix
       rp.setY(i + 1, (y < 0 ? y + 50 : y) - 1.1);
     }
     rp.needsUpdate = this.rain.visible;
-    if ((v.offroad || this.wetness > 0.3) && Math.abs(v.u) > 3 && Math.random() < Math.min(1, dt * 45)) {
+    const smoking = v.drift > .15 && v.slip > .08 && v.u > 4 && v.wheels.some(w=>w.grounded);
+    if ((smoking || v.offroad || this.wetness > 0.3) && Math.abs(v.u) > 3 && Math.random() < Math.min(1, dt * (this.quality === 'low' ? 20 : 45))) {
       const i = this.dustIndex++ % 70;
-      this.dustPositions.set([v.x + (Math.random() - 0.5) * 1.8, v.y - 0.45, v.z + 1.5], i * 3);
+      const side=i%2 ? .92 : -.92;
+      this.dustPositions.set([v.x+Math.cos(v.heading)*side-Math.sin(v.heading)*1.3,v.y-.3,v.z+Math.sin(v.heading)*side+Math.cos(v.heading)*1.3],i*3);
       this.dustAges[i] = 0;
     }
     for (let i = 0; i < 70; i++) {
       this.dustAges[i] += dt;
+      this.dustGeo.attributes.life.setX(i,Math.max(0,1-this.dustAges[i]/2));
       if (this.dustAges[i] < 2) this.dustPositions[i * 3 + 1] += dt * 0.4;
       else this.dustPositions[i * 3 + 1] = -1000;
     }
-    this.dust.material.color.set(this.wetness > 0.3 ? 0xc2d5d5 : 0xc2b798);
+    this.dust.material.color.set(smoking ? 0xe1e3e3 : this.wetness > 0.3 ? 0xc2d5d5 : 0xc2b798);
     this.dust.material.opacity = this.wetness > 0.3 ? 0.13 : 0.28;
     this.dustGeo.attributes.position.needsUpdate = true;
+    this.dustGeo.attributes.life.needsUpdate = true;
     this.updatePeers(dt,v);
     this.renderer.render(this.scene, this.camera);
   }

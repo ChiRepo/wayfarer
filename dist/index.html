@@ -10,7 +10,7 @@
     />
     <title>Wayfarer — Find your horizon</title>
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./style.css?v=20261021c" />
   </head>
   <body>
     <canvas id="scene" aria-label="Procedural 3D driving landscape"></canvas>
@@ -35,6 +35,8 @@
       >
       <div class="live-label"><span></span> NOWHERE TO BE. EVERYWHERE TO GO.</div>
       <nav>
+        <button class="icon-button" id="games" aria-label="Mini-games" title="Mini-games">⚑</button>
+        <button class="icon-button" id="fullscreen" aria-label="Enter full screen" title="Full screen">⛶</button>
         <button class="icon-button" id="multiplayer" aria-label="Drive together" title="Drive together">
           <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-3a6 6 0 0 1 12 0v3m1-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5"/></svg>
         </button>
@@ -91,6 +93,7 @@
         ><span id="route-label">ALPINE PASS / GOLDEN HOUR</span>
       </div>
       <button id="convoy-badge" hidden aria-label="Open convoy room"></button>
+      <div id="challenge-hud" hidden><span id="challenge-name"></span><strong id="challenge-value"></strong><span id="challenge-detail"></span><progress id="challenge-progress" max="1" value="0" aria-label="Challenge progress"></progress><button id="end-challenge">End challenge</button></div>
       <div id="weather-status">Golden hour · evolving skies</div>
       <div id="road-status">ON THE OPEN ROAD</div>
       <div class="speedometer">
@@ -117,23 +120,37 @@
           ><button data-input="right" aria-label="Steer right">→</button>
         </div>
         <div>
-          <button data-input="brake" aria-label="Brake and hold to reverse">BRAKE / R</button
+          <button data-input="handbrake" aria-label="Handbrake">DRIFT</button><button data-input="brake" aria-label="Brake and hold to reverse">BRAKE / R</button
           ><button data-input="throttle" aria-label="Accelerate">↑</button>
         </div>
       </div>
     </div>
     <div id="photo-ui" hidden>
       <span>PHOTO MODE <small>Drag to orbit · Scroll to zoom</small></span
-      ><button id="capture">Save photograph ↗</button
+      ><select id="viewpoint" aria-label="Scenic viewpoint"><option value="hero">Hero shot</option><option value="vista">Scenic overlook</option><option value="profile">Side profile</option><option value="aerial">Bird’s eye</option></select><button id="capture">Save photograph ↗</button
       ><button id="exit-photo">Back to the road <kbd>ESC</kbd></button>
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="games-dialog" class="game-screen" aria-labelledby="games-title">
+      <div class="dialog-heading"><div><span class="eyebrow">A LITTLE FRIENDLY AMBITION</span><h2 id="games-title">Find your next challenge.</h2></div><button class="close" aria-label="Close mini-games">×</button></div>
+      <p class="muted">Find your rhythm, race the horizon, or build a drift streak. Solo challenges use your current scenery and weather. Pause whenever you need a breath.</p>
+      <div class="game-cards">
+        <article><span class="eyebrow">01 / AGAINST THE CLOCK</span><h3>Horizon Sprint</h3><p>750 metres. 90 seconds. Find your line through the bends and reach the horizon before time runs out.</p><button class="primary" data-challenge="sprint">Start sprint ↗</button></article>
+        <article><span class="eyebrow">02 / FIND YOUR FLOW</span><h3>Clean Cruise</h3><p>60 seconds of smooth driving. Stay on the road above 30 km/h. Longer clean streaks multiply your points.</p><button class="primary" data-challenge="cruise">Start cruise ↗</button></article>
+        <article><span class="eyebrow">03 / CONTROL THE SLIDE</span><h3>Drift Flow</h3><p>60 seconds. Enter a bend, tap the handbrake, countersteer and catch the slide. Stay on the road to score.</p><button class="primary" data-challenge="drift">Start drift flow ↗</button></article>
+      </div><p id="games-note" class="muted">Manual driving only. Reset ends the attempt. Escape or × closes this menu.</p>
+    </dialog>
+    <dialog id="results-dialog" class="game-screen" aria-labelledby="results-title">
+      <div class="dialog-heading"><span class="eyebrow">THE FINISH LINE</span><button class="close" aria-label="Close results">×</button></div>
+      <h2 id="results-title">A drive to remember.</h2><p id="results-summary"></p><div class="result-actions"><button id="replay-challenge" class="primary">Try again ↗</button><button id="browse-challenges" class="secondary">Choose a challenge</button><button id="free-drive" class="secondary">Back to free driving</button></div>
+    </dialog>
     <dialog id="multiplayer-dialog">
       <div class="dialog-heading"><div><span class="eyebrow">A LITTLE COMPANY</span><h2>Wander together.</h2></div><button class="close" aria-label="Close multiplayer">×</button></div>
-      <p class="muted">One road. Up to eight friends. Share the view without bumping each other off course.</p>
+      <p class="muted">Shared drives keep cars ghosted. Race rooms enable car contact and a synchronized 1500-metre sprint. Invite friends before the host starts. Casual racing; no anti-cheat.</p>
       <div id="room-form">
         <label for="driver-name">Your driving name<input id="driver-name" maxlength="20" value="Wanderer" autocomplete="nickname" /></label>
         <button id="create-room" class="primary">Start a shared drive <span>↗</span></button>
+        <button id="create-race" class="secondary">Create a race lobby ↗</button>
         <div class="room-divider">OR JOIN YOUR FRIENDS</div>
         <label for="room-code">Room code<input id="room-code" maxlength="12" placeholder="10-character code" autocomplete="off" autocapitalize="characters" spellcheck="false" /></label>
         <button id="join-room" class="secondary">Join the drive ↗</button>
@@ -144,6 +161,8 @@
         <label for="invite-link">Invite link<input id="invite-link" readonly /></label>
         <button id="copy-invite" class="secondary">Copy invite link ↗</button>
         <ul id="room-players"></ul>
+        <button id="launch-race" class="primary" hidden>Start race · 5 second countdown</button>
+        <p id="race-status" class="muted"></p>
         <div class="room-actions"><button id="meet-convoy" class="secondary">Meet the convoy</button><button id="leave-room" class="text-button">Leave room</button></div>
       </div>
       <p id="room-message" class="muted" role="status" aria-live="polite">Rooms last up to 24 hours. No account or email needed.</p>
@@ -199,12 +218,16 @@
           <option value="high">High detail</option>
           <option value="low">Battery saver</option>
         </select></label
-      ><label class="range-label"
+      ><label class="range-label" for="sensitivity">
+        <span>Steering sensitivity</span> <output id="sensitivity-value" for="sensitivity">1.00×</output>
+        <input id="sensitivity" aria-describedby="sensitivity-help" type="range" min="0.25" max="2" step="0.05" value="1">
+        <small id="sensitivity-help">Lower for gentler steering; higher for quicker response. Applies to keyboard, touch and gamepad.</small>
+      </label><label class="range-label"
         >Sound level
         <input id="volume" aria-label="Sound level" type="range" min="0" max="100" value="35"
       /></label>
       <div class="settings-bottom">
-        <button id="new-road" class="secondary">Generate a new road ↗</button
+        <button id="track-road" class="secondary">Generate track-style road ↗</button><button id="new-road" class="secondary">Generate a new road ↗</button
         ><span id="seed-label">ROAD 0007</span>
       </div>
     </dialog>
@@ -233,7 +256,7 @@
       </div>
       <p class="muted">
         Gamepad supported: left stick to steer, RT to accelerate, LT to brake and reverse. Hold the brake after stopping to engage reverse; hold the accelerator to stop and shift forward again. Touch controls appear
-        on touchscreens. Rain reduces grip; the shoulder is rougher than the road.
+        on touchscreens. Rain reduces grip; off-road driving slows the car without reducing tyre grip.
       </p>
     </dialog>
     <dialog id="pause-dialog">
@@ -259,6 +282,6 @@
       >
       <p class="muted">You can also save the image using your browser’s image menu.</p>
     </dialog>
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20261021c"></script>
   </body>
 </html>

@@ -177,3 +177,58 @@ test("handbrake permits an intentional slide and releasing it restores control",
   assert.ok(Math.abs(car.v) < 0.2);
   assert.ok(Math.abs(car.yawRate) < 0.03);
 });
+
+test('power builds progressively and braking immediately cuts drive torque', () => {
+  const v = new Vehicle(makeRoad());
+  v.step(1/120, {...neutral, throttle:1});
+  assert.ok(v.drivePower > 0 && v.drivePower < 0.03);
+  run(v,1,{...neutral,throttle:1});
+  assert.ok(v.drivePower > 0.9 && v.drivePower < 1);
+  v.step(1/120,{...neutral,throttle:1,brake:1});
+  assert.equal(v.drivePower,0);
+  v.reset(); assert.equal(v.drivePower,0);
+});
+
+test('track seeds are reproducible, distinct and smooth at segment boundaries',()=>{
+ const a=makeRoad(90001),b=makeRoad(90001),c=makeRoad(90002);
+ assert.equal(a.circuit,true);assert.equal(makeRoad(7).circuit,false);
+ assert.notEqual(a.center(110),c.center(110));
+ for(let s=-440;s<5000;s+=220){
+   assert.equal(a.center(s),b.center(s));
+   assert.ok(Math.abs(a.heading(s+.01)-a.heading(s-.01))<.001);
+   assert.ok(Math.abs(a.surface(a.center(s),s+.001)-a.surface(a.center(s),s-.001))<.01);
+ }
+});
+test('offroad applies a single speed-relative penalty without reducing steering grip',()=>{
+ const flat={...makeRoad(),center:()=>0,heading:()=>0,surface:()=>0};
+ for(const speed of [10,25,45]) {
+   const v=new Vehicle(flat);v.x=10;v.u=speed;
+   v.step(1/120,neutral);
+   const loss=(speed-v.offroadLimit)*3.6;
+   assert.ok(loss>=4.99 && loss<=15.01);
+   const limit=v.offroadLimit;run(v,1,neutral);assert.equal(v.offroadLimit,limit);
+   assert.ok(Math.abs(v.v)<.001);
+   v.x=0;v.step(1/120,neutral);assert.equal(v.offroadLimit,null);
+ }
+});
+test('race collisions resolve own car contact, ignore height-separated cars and stay bounded',()=>{
+ const v=new Vehicle(makeRoad());v.heading=0;v.u=20;
+ const peer={x:v.x,y:v.y,z:v.z-2,h:0,u:5};
+ assert.equal(v.collidePlayer({...peer,y:v.y+5},1/120),false);
+ assert.equal(v.collidePlayer(peer,1/120),true);assert.ok(v.u<20 && v.u>=5);
+ for(let i=0;i<120;i++) v.collidePlayer(peer,1/120);
+ assert.ok(Number.isFinite(v.x+v.z+v.u+v.v));
+});
+
+test("sensitivity adjusts response without exceeding safe steering limits", () => {
+  const slow = new Vehicle(makeRoad()), fast = new Vehicle(makeRoad());
+  slow.step(1/120, {...neutral, steer:.5, sensitivity:.25});
+  fast.step(1/120, {...neutral, steer:.5, sensitivity:2});
+  assert.ok(fast.steer > slow.steer * 2);
+  for (const sensitivity of [.25, 1, 2, NaN, Infinity, -100, 100]) {
+    const v = new Vehicle(makeRoad());
+    run(v, 4, {...neutral, throttle:1, steer:1, sensitivity});
+    assert.ok(Number.isFinite(v.heading));
+    assert.ok(Math.abs(v.steer) <= .58);
+  }
+});

@@ -30,6 +30,9 @@
           },
           "$other": {
             ".validate": false
+          },
+          "mode": {
+            ".validate": "newData.val() === 'drive' || newData.val() === 'race'"
           }
         },
         "players": {
@@ -89,11 +92,27 @@
             },
             "$other": {
               ".validate": false
+            },
+            "raceId": {
+              ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === root.child('rooms').child($room).child('race/startedAt').val())"
+            },
+            "finish": {
+              ".validate": "newData.isNumber() && (newData.val() === 0 || (newData.val() <= now && newData.val() >= root.child('rooms').child($room).child('race/startedAt').val()))"
             }
           }
         },
         "$other": {
           ".validate": false
+        },
+        "race": {
+          ".write": "auth != null && root.child('rooms').child($room).child('meta/owner').val() === auth.uid && root.child('rooms').child($room).child('meta/mode').val() === 'race' && root.child('rooms').child($room).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['startedAt'])",
+          "startedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now + 3000 && newData.val() <= now + 10000"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }

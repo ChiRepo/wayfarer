@@ -1,4 +1,4 @@
-import { makeRoad } from './physics.js';
+import { makeRoad } from './physics.js?v=20261021';
 export const config = {
   apiKey: 'AIzaSyCtxRORRJxB6OTheahlRrBiCmGsXd22Jqo',
   authDomain: 'wavefinder-2da9d.firebaseapp.com',
@@ -40,7 +40,7 @@ export class Multiplayer {
     if (!this.auth.currentUser) await this.sdk.signInAnonymously(this.auth);
     this.uid = this.auth.currentUser.uid;
   }
-  async connect({create, code, name, seed, biome, weather, color}) {
+  async connect({create, code, name, seed, biome, weather, color, mode = "drive"}) {
     if (this.pending || this.active) return;
     this.pending = true;
     const generation = ++this.generation;
@@ -59,7 +59,7 @@ export class Multiplayer {
       const roomRef = f.ref(this.db,'rooms/'+code), metaRef = f.ref(this.db,'rooms/'+code+'/meta');
       if (create) {
         const result = await f.runTransaction(metaRef, current => current ? undefined : {
-          owner:this.uid, seed, biome, weather, createdAt:f.serverTimestamp(), expiresAt:this.now+86300000,
+          owner:this.uid, seed, biome, weather, mode, createdAt:f.serverTimestamp(), expiresAt:this.now+86300000,
         }, {applyLocally:false});
         if (!result.committed) throw Error('This code was just taken. Please create another room.');
       }
@@ -97,6 +97,10 @@ export class Multiplayer {
       this.playerRef=claimed; this.roomRef=roomRef; this.code=code; this.meta=meta;
       this.name=cleanName(name); this.active=true; this.connected=true;
       this.callbacks.room(meta,this.slot,this.spawnS);
+      this.unsub.push(f.onValue(f.ref(this.db,`rooms/${code}/race`), snapshot=>{
+        this.race=snapshot.val();
+        this.callbacks.race?.(this.race);
+      }));
       this.unsub.push(f.onValue(f.ref(this.db,`rooms/${code}/players`), snapshot => {
         const data=snapshot.val() || {};
         if (data[this.slot] && data[this.slot].uid !== this.uid) {
@@ -135,6 +139,7 @@ export class Multiplayer {
   tick(dt, vehicle, color, paused) {
     if (!this.active) return;
     if (this.now > this.meta.expiresAt) { this.status('This room has ended. Create a new drive.'); void this.leave(); return; }
+    this.isPaused=paused;
     this.sendTime+=dt;
     if (!this.connected || this.sending || this.sendTime < (paused ? 2 : 0.1)) return;
     this.sendTime=0;
@@ -142,7 +147,12 @@ export class Multiplayer {
     const recent=this.peers.filter(p=>p.t>this.now-120000);
     if(recent.length!==this.peers.length) { this.peers=recent; this.callbacks.peers(recent); }
   }
+  async startRace() {
+    if(!this.active || this.meta.mode!=='race' || this.meta.owner!==this.uid) return;
+    await this.sdk.set(this.sdk.ref(this.db,`rooms/${this.code}/race`),{startedAt:this.now+5000});
+  }
   publish(payload) {
+    payload={...payload,raceId:this.isPaused && !this.finish ? 0 : this.raceId || 0,finish:this.finish || 0};
     this.sending=true; this.lastPayload=payload; this.lastSentAt=this.now;
     const generation=this.generation;
     this.sdk.set(this.playerRef,payload).catch(()=>{
@@ -153,7 +163,7 @@ export class Multiplayer {
     ++this.generation;
     clearInterval(this.heartbeat); this.heartbeat=null; this.lastPayload=null;
     const f=this.sdk, player=this.playerRef, room=this.roomRef, code=this.code;
-    this.active=false; this.connected=false; this.pending=false;
+    this.active=false; this.connected=false; this.pending=false; this.race=null; this.raceId=0; this.finish=0;
     for(const off of this.unsub) off(); this.unsub=[];
     this.playerRef=null; this.roomRef=null; this.code=null; this.peers=[]; this.sending=false;
     this.callbacks.peers([]); this.callbacks.change();

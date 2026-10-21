@@ -6,10 +6,18 @@ export const TERRAIN_OFFSETS = [-450,-350,-260,-195,-140,-100,-70,-48,-32,-22,-1
 export function makeRoad(seed = 7, biome = "alpine") {
   const phase = (seed % 997) * 0.007;
   const bend = biome === "coast" ? 1.25 : biome === "desert" ? 0.8 : 1;
-  const center = (s) =>
-    bend * (45 * Math.sin(s * 0.0038 + phase) + 19 * Math.sin(s * 0.0101 + phase * 0.7));
+  const circuit = seed >= 90000;
+  const hash = n => { const v = Math.sin(n * 127.1 + seed * 0.37) * 43758.5453; return v - Math.floor(v); };
+  // Quintic interpolation makes straights, sweepers and chicanes meet with
+  // continuous slope and curvature. Sections never cross or double back.
+  const center = (s) => {
+    if (!circuit) return bend * (45 * Math.sin(s * 0.0038 + phase) + 19 * Math.sin(s * 0.0101 + phase * 0.7));
+    const section = Math.floor(s / 220), t = s / 220 - section;
+    const a = (hash(section) - .5) * 115, b = (hash(section + 1) - .5) * 115;
+    return lerp(a, b, t*t*t*(t*(t*6-15)+10));
+  };
   const elevation = (s) =>
-    biome === "coast"
+    circuit ? 12 + 1.5 * Math.sin(s * .002) : biome === "coast"
       ? 7 + 3 * Math.sin(s * 0.0045)
       : biome === "desert"
         ? 9 + 4 * Math.sin(s * 0.005)
@@ -51,7 +59,7 @@ export function makeRoad(seed = 7, biome = "alpine") {
     const d = Math.abs(x - lerp(center(s0), center(s0 + 4), t));
     return d <= 5.1 ? lerp(elevation(s0), elevation(s0 + 4), t) + 0.015 : terrain(x, s);
   };
-  return { center, elevation, heading, curvature, terrain, terrainVertex, surface, seed, biome };
+  return { center, elevation, heading, curvature, terrain, terrainVertex, surface, seed, biome, circuit };
 }
 export class Vehicle {
   constructor(road) {
@@ -75,6 +83,9 @@ export class Vehicle {
     this.wheelSpin = 0;
     this.offroad = false;
     this.acceleration = 0;
+    this.drivePower = 0;
+    this.offroadLimit = null;
+    this.drift = 0;
     this.gear = 1;
     this.shiftHold = 0;
     this.rollVelocity = this.pitchVelocity = 0;
@@ -121,6 +132,28 @@ export class Vehicle {
     }
     return hit;
   }
+  collidePlayer(peer, dt) {
+    if (Math.abs(this.y - peer.y) > 2) return false;
+    const dx = this.x - peer.x, dz = this.z - peer.z;
+    const distance = Math.hypot(dx, dz), limit = 2.25;
+    if (distance >= limit) return false;
+    const nx = distance > .001 ? dx / distance : 1, nz = distance > .001 ? dz / distance : 0;
+    const sin = Math.sin(this.heading), cos = Math.cos(this.heading);
+    let vx = sin*this.u + cos*this.v, vz = -cos*this.u + sin*this.v;
+    const incoming = (vx - Math.sin(peer.h)*peer.u)*nx + (vz + Math.cos(peer.h)*peer.u)*nz;
+    // Each client changes only its own car: half an equal-mass impulse,
+    // bounded overlap correction and stale-peer filtering at the caller.
+    const correction = Math.min(limit-distance, 5*dt);
+    this.x += nx*correction; this.z += nz*correction;
+    if (incoming < 0) {
+      const impulse = Math.min(12, -incoming*.6);
+      vx += impulse*nx; vz += impulse*nz;
+      this.u = clamp(vx*sin-vz*cos, this.gear < 0 ? -9 : 0, 57);
+      this.v = clamp(vx*cos+vz*sin, -10, 10);
+      this.impact = Math.min(1, -incoming/15);
+    }
+    return true;
+  }
   updateSuspension(dt, snap = false) {
     const sin = Math.sin(this.heading), cos = Math.cos(this.heading);
     let total = 0, front = 0, rear = 0, left = 0, right = 0;
@@ -132,8 +165,8 @@ export class Vehicle {
       if (w.z < 0) front += w.ground; else rear += w.ground;
       if (w.x < 0) left += w.ground; else right += w.ground;
     }
-    const pitchTarget = clamp(Math.atan2(front - rear, 5.2) - this.acceleration * 0.006, -0.42, 0.42);
-    const rollTarget = clamp(Math.atan2(right - left, 3.76) + this.u * this.yawRate * 0.009, -0.32, 0.32);
+    const pitchTarget = clamp(Math.atan2(front - rear, 5.2) - this.acceleration * 0.0025, -0.22, 0.22);
+    const rollTarget = clamp(Math.atan2(right - left, 3.76) + this.u * this.yawRate * 0.0025, -0.12, 0.12);
     const target = total / 4 + 0.67;
     if (snap) { this.y = target; this.pitch = pitchTarget; this.roll = rollTarget; }
     else {
@@ -150,8 +183,8 @@ export class Vehicle {
       this.y += this.vy * dt;
       this.pitchVelocity += ((pitchTarget - this.pitch) * 65 - this.pitchVelocity * 12) * dt;
       this.rollVelocity += ((rollTarget - this.roll) * 75 - this.rollVelocity * 13) * dt;
-      this.pitch = clamp(this.pitch + this.pitchVelocity * dt, -0.45, 0.45);
-      this.roll = clamp(this.roll + this.rollVelocity * dt, -0.35, 0.35);
+      this.pitch = clamp(this.pitch + this.pitchVelocity * dt, -0.23, 0.23);
+      this.roll = clamp(this.roll + this.rollVelocity * dt, -0.13, 0.13);
     }
     // Bump stops keep the body and tires out of the solid ground on sharp crests.
     let floor = this.road.surface(this.x, -this.z) + 0.38;
@@ -182,7 +215,14 @@ export class Vehicle {
   step(dt, input, wet = false) {
     const s = -this.z,
       offset = this.x - this.road.center(s);
+    const wasOffroad = this.offroad;
     this.offroad = Math.abs(offset) > 5.15;
+    if (this.offroad && !wasOffroad) {
+      const penalty = clamp(Math.abs(this.u)*3.6*.12, 5, 15)/3.6;
+      this.offroadLimit = Math.max(3, Math.abs(this.u)-penalty);
+    }
+    if (!this.offroad) this.offroadLimit = null;
+    this.drift = damp(this.drift, input.handbrake && this.u > 4 ? 1 : 0, input.handbrake ? 7 : 4, dt);
     const oldU = this.u;
     const throttle = clamp(input.throttle || 0, 0, 1), brake = clamp(input.brake || 0, 0, 1);
     if (input.automatic) { this.gear = 1; this.shiftHold = 0; }
@@ -193,13 +233,14 @@ export class Vehicle {
       if (this.shiftHold >= 0.45) { this.gear *= -1; this.shiftHold = 0; }
     } else this.shiftHold = 0;
     const contact = this.wheels.filter(w => w.grounded).length / 4;
-    const grip = 1.2 * (1 - clamp(Number(wet), 0, 1) * 0.28) * (this.offroad ? 0.55 : 1) * Math.max(0.15, contact);
+    const grip = 1.2 * (1 - clamp(Number(wet), 0, 1) * 0.28) * Math.max(0.15, contact);
     const steeringLimit = 0.58 / (1 + Math.abs(this.u) * 0.024);
     // Keep full-lock input within available cornering grip at speed. Small inputs
     // retain their sensitivity, while low-speed turns can still use full lock.
     const cornerLimit = Math.atan2(9.81 * grip * 0.9 * 2.6, Math.max(this.u * this.u, 1));
-    const steerTarget = clamp(input.steer || 0, -1, 1) * steeringLimit;
-    this.steer = damp(this.steer, input.handbrake ? steerTarget : clamp(steerTarget, -cornerLimit, cornerLimit), 11, dt);
+    const sensitivity = Number.isFinite(input.sensitivity) ? clamp(input.sensitivity, 0.25, 2) : 1;
+    const steerTarget = clamp((input.steer || 0) * sensitivity, -1, 1) * steeringLimit;
+    this.steer = damp(this.steer, input.handbrake ? steerTarget : clamp(steerTarget, -cornerLimit, cornerLimit), 11 * sensitivity, dt);
     const mass = 1280,
       lf = 1.22,
       lr = 1.38,
@@ -208,23 +249,32 @@ export class Vehicle {
     const frontSlip = this.steer - Math.atan2(this.v + lf * this.yawRate, speed);
     const rearSlip = -Math.atan2(this.v - lr * this.yawRate, speed);
     const maxFront = mass * 9.81 * 0.53 * grip,
-      maxRear = mass * 9.81 * 0.47 * grip * (input.handbrake ? 0.34 : 1.12);
+      maxRear = mass * 9.81 * 0.47 * grip * lerp(1.12, 0.48, this.drift);
     const front = maxFront * Math.tanh((frontSlip * 85000) / maxFront);
     const rear = maxRear * Math.tanh((rearSlip * 100000) / maxRear);
     const drive = this.gear === 1 ? throttle : brake;
     const stop = this.gear === 1 ? brake : throttle;
-    const engine = drive * (this.gear === 1 ? 6.4 : -3.4) * Math.max(0.15, 1 - Math.abs(this.u) / (this.gear === 1 ? 57 : 9));
-    const braking = stop * 10.8 + (input.handbrake ? 9 : 0);
-    const resistance = 0.16 + 0.00095 * this.u * this.u + (this.offroad ? 1.9 + 0.04 * Math.abs(this.u) : 0);
+    // Ease into power; brake and direction changes cut torque immediately.
+    this.drivePower = stop > 0 || input.handbrake || this.shiftHold > 0 ? 0 : damp(this.drivePower, drive, drive > this.drivePower ? 2.8 : 10, dt);
+    const engine = this.drivePower * (this.gear === 1 ? 6.4 : -3.4) * Math.max(0.15, 1 - Math.abs(this.u) / (this.gear === 1 ? 57 : 9));
+    const braking = stop * 10.8 + (input.handbrake ? 3.2 : 0);
+    const resistance = 0.16 + 0.00095 * this.u * this.u;
     const fx = Math.sin(this.heading), fz = Math.cos(this.heading);
     const slope = (this.road.surface(this.x + fx, s + fz) - this.road.surface(this.x - fx, s - fz)) / 2;
     let next = this.u + (engine - slope * 9.81 + this.v * this.yawRate) * dt;
     const slowing = (braking + resistance) * dt;
     next = Math.sign(next) * Math.max(0, Math.abs(next) - slowing);
+    if (this.offroadLimit !== null && Math.abs(next) > this.offroadLimit)
+      next = Math.sign(next) * damp(Math.abs(next), this.offroadLimit, 5, dt);
     this.u = clamp(next, this.gear === -1 ? -9 : 0, this.gear === 1 ? 57 : 0);
     if (this.u > 2) {
       this.v += ((front + rear) / mass - this.u * this.yawRate) * dt;
       this.yawRate += ((lf * front - lr * rear) / inertia) * dt;
+      if (this.drift > .05 && contact > 0) {
+        const turn = clamp(this.steer * 2.5, -.8, .8);
+        this.yawRate = damp(this.yawRate, turn, 3*this.drift, dt);
+        this.v = damp(this.v, -turn*this.u*.28, 2.5*this.drift, dt);
+      }
       if (!input.handbrake && contact > 0) {
         // Arcade stability assistance keeps the rear wheels following the turn
         // and removes lingering sideways motion when the driver straightens up.

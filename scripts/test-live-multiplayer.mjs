@@ -26,7 +26,7 @@ try {
  expect(await request(null),false,'unauthenticated room reads denied');
  const rootURL=new URL(config.databaseURL+'/rooms.json');rootURL.searchParams.set('auth',a.idToken);
  expect({ok:(await fetch(rootURL)).ok,status:0},false,'room directory enumeration denied');
- expect(await request(a,'/meta','PUT',{owner:a.localId,seed:37,biome:'alpine',weather:'rain',createdAt:{'.sv':'timestamp'},expiresAt:Date.now()+300000}),true,'authenticated room creation');
+ expect(await request(a,'/meta','PUT',{owner:a.localId,seed:37,biome:'alpine',weather:'rain',mode:'race',createdAt:{'.sv':'timestamp'},expiresAt:Date.now()+300000}),true,'authenticated room creation');
  const player=(account,name)=>({uid:account.localId,name,color:'#efb46e',x:12,y:20,z:-30,h:0,p:0,r:0,steer:0,spin:0,u:0,w0:-.32,w1:-.32,w2:-.32,w3:-.32,t:{'.sv':'timestamp'}});
  expect(await request(a,'/players/0','PUT',player(a,'Test Alpha')),true,'first player joins');
  expect(await request(b,'/players/1','PUT',player(b,'Test Beta')),true,'second identity joins');
@@ -38,6 +38,16 @@ try {
  expect(await request(a,'/players/0','PATCH',{name:'x'.repeat(80)}),false,'oversized names rejected');
  expect(await request(a,'/players/0','PATCH',{arbitrary:'unvalidated data'}),false,'unexpected fields rejected');
  expect(await request(b,'/meta','PATCH',{seed:999}),false,'shared route cannot be hijacked');
+ const raceAt=Date.now()+5000;
+ expect(await request(b,'/race','PUT',{startedAt:raceAt}),false,'guest cannot start race');
+ expect(await request(a,'/race','PUT',{startedAt:Date.now()-1000}),false,'past race starts rejected');
+ expect(await request(a,'/race','PUT',{startedAt:Date.now()+50000}),false,'distant race starts rejected');
+ expect(await request(a,'/race','PUT',{startedAt:raceAt,extra:true}),false,'unexpected race fields rejected');
+ expect(await request(a,'/race','PUT',{startedAt:raceAt}),true,'host starts synchronized countdown');
+ expect(await request(b,'/players/1','PATCH',{raceId:raceAt,finish:0}),true,'driver joins current race');
+ expect(await request(b,'/players/1','PATCH',{raceId:123}),false,'invalid race identifiers rejected');
+ expect(await request(b,'/players/1','PATCH',{finish:Date.now()+60000}),false,'future finish rejected');
+ expect(await request(b,'/players/1','PATCH',{raceId:0,finish:0}),true,'driver can ghost or abandon race');
  expect(await request(a,'/players/0','PATCH',{x:15,u:-4,t:{'.sv':'timestamp'}}),true,'own movement and reverse accepted');
  assert.equal((await request(b,'/players/0')).data.x,15);checks++;console.log('PASS movement visible to second identity');
  for(let slot=2;slot<8;slot++) expect(await request(a,`/players/${slot}`,'PUT',player(a,'Test Slot '+slot)),true,'allowed seat '+slot);

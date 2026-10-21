@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check dist/app.js && node --check dist/world.js && node --check dist/physics.js && node --check dist/weather.js && node --check dist/multiplayer.js",
+    "check": "node --check dist/app.js && node --check dist/world.js && node --check dist/physics.js && node --check dist/weather.js && node --check dist/multiplayer.js && node --check dist/challenges.js",
     "build:firebase": "node scripts/build-firebase.mjs",
     "test:multiplayer:live": "MULTIPLAYER_LIVE_TEST=1 node scripts/test-live-multiplayer.mjs"
   },

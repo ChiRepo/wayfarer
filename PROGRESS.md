@@ -4,6 +4,30 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 21 October 2026 — Release verification and sensitivity
+
+Added persistent 0.25×–2.00× steering sensitivity with a live numeric output for keyboard, touch and gamepad. Both input gain and response smoothing use the setting; the high-speed steering limit remains. Verified saved 1.35× after reload and fixed narrow-screen label wrapping. Bumped module/style versions to avoid stale assets.
+
+Current verification: 32 offline tests, six syntax checks and all 31 live isolated multiplayer checks pass. Browser verified Drift Flow start/HUD, track regeneration, visible settlements/curbs, acceleration/cornering, fullscreen entry/exit, sensitivity persistence and responsive layout. No captured browser console errors. Earlier checks recorded below cover remaining challenge/photo flows. Physical phones/controllers and adverse-network race collisions remain unverified.
+
+Firebase Hosting successfully deployed the final cache-version update to https://wavefinder-2da9d.web.app. Live browser startup and the new settings control were verified; screenshot: work/qa/sensitivity-release.png. The linked historical Sites registration remains version 0 with no live URL; its source helper returned "Unable to prepare the Site." Continued the canonical Firebase release destination required by AGENTS.md, preserving Sites access and GitHub history.
+
+## 21 October 2026 — Race modes, immersive handling and scenery
+
+Preserved and completed the existing uncommitted mini-game/fullscreen/camera work. Added Drift Flow, shared race lobbies with owner-controlled synchronized starts, 1500-metre sprint/120-second timeout, provisional finish timing, and car contact limited to active fresh racers. Free-drive rooms remain ghosted. Paused racers are ghosted and the race clock continues; late joins wait for another round. Extended the strict room schema for mode, countdown and bounded race/finish fields without changing player ownership or room capacity.
+
+Removed off-road grip loss, replacing it with a smooth entry-speed-relative 5–15 km/h cap reduction. Added bounded assisted handbrake slides, tyre smoke, less body roll/pitch, smoother wheel travel, sport body details, touch drift control, aerial/trackside cameras, and four photo presets. Added deterministic racing-style endless routes (reserved seed range), instanced curbs, villages/city districts, shared facade atlas, bounded particles, and incremental distant chunk generation. Added versioned local module/style URLs after browser testing exposed stale cached modules.
+
+Verification so far: 30 offline checks and six syntax checks pass. Database rules deployed and 31 isolated live checks pass, including owner-only race start, invalid timestamps/fields, race membership, ghosting, existing ownership, and eight-seat capacity. Browser checks confirmed fresh startup, desktop acceleration/handbrake, full-screen entry/exit, challenge HUD, generated curbs/buildings and aerial framing. Further release checks below. Physical device/gamepad and adverse-network race contact remain unverified. Roads are point-to-point, not closed lap circuits; racing is client-authoritative and finishing position is provisional.
+
+## 20 October 2026 — Mini-games, fullscreen and racing camera
+
+Added two solo manual-driving mini-games: Horizon Sprint (750 metres / 90 seconds) and Clean Cruise (60 seconds, clean-road streak scoring). Full-viewport chooser/results dialogs have close, replay and free-drive controls; the live HUD includes countdown, timer, progress and end action. Paused dialogs/photo/hidden tabs stop the challenge clock. Reset/route changes end an attempt, and multiplayer cannot start during a challenge. Added browser fullscreen entry/exit with unsupported-browser feedback.
+
+Added progressive engine power delivery with immediate brake torque cut, lower chase framing, damped speed-dependent distance/FOV, turn look-ahead and smoother hood-camera entry. Reduced-motion behavior is retained. Files: app, HTML/CSS, world/physics, new challenges module and tests, package syntax check list.
+
+Verification: all 25 offline tests and six syntax checks pass. New tests cover countdown, forward-only progress, completion/timeout, clean scoring and power ramp/braking. Desktop browser checks covered both starts, countdown/scoring, pause/resume, camera cycling, end/results, fullscreen entry/exit, and Escape closing menus. Portrait 390×844 and landscape 844×390 previews were inspected. No console errors observed. Physical devices/controllers remain untested. Release verification is recorded below when completed; multiplayer rules/backend are unchanged.
+
 ## 20 October 2026 — Reduced drifting and smoother steering
 
 Completed the handling adjustment requested on 16 October: increased tire grip/cornering stiffness and rear traction, faster damped steering, grip-limited high-speed steering, and grounded stability assistance for yaw and lateral motion. Low-speed steering has more available lock. Handbrake input deliberately bypasses the assistance; wet/off-road grip differences remain.

@@ -1097,3 +1097,33 @@ button:disabled, select:disabled { opacity: .45; cursor: default; }
 
 #room-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #room-players li { min-width: 0; overflow-wrap: anywhere; }
+
+/* Challenges use the complete viewport, with native dialog focus/escape behavior. */
+dialog.game-screen { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border: 0; border-radius: 0; padding: max(32px, env(safe-area-inset-top)) max(6vw, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 85% 10%, #49665c, transparent 65%), #122b28; }
+.game-screen h2 { font-size: clamp(30px, 5vw, 64px); max-width: 800px; }
+.game-screen > .muted { max-width: 700px; line-height: 1.7; }
+.game-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 32px 0; max-width: 1100px; }
+.game-cards article { display: flex; flex-direction: column; align-items: flex-start; padding: clamp(20px, 3vw, 40px); border: 1px solid #dcdcc538; border-radius: 16px; background: #ffffff08; }
+.game-cards h3 { font-size: clamp(24px, 3vw, 38px); margin: 20px 0 0; }
+.game-cards p { line-height: 1.8; color: #d5ddcc; flex: 1; }
+.result-actions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
+#results-summary { max-width: 650px; line-height: 1.8; font-size: 20px; }
+#challenge-hud { position: fixed; top: 105px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: 1fr auto; gap: 5px 20px; width: min(360px, 90vw); padding: 14px 18px; border: 1px solid #fff3; border-radius: 14px; background: #102c27dc; backdrop-filter: blur(12px); }
+#challenge-hud[hidden] { display: none; }
+#challenge-name { font-size: 13px; } #challenge-value { grid-row: span 2; font-size: 24px; } #challenge-detail { font-size: 11px; color: #ccd7bc; }
+#challenge-progress { width: 100%; grid-column: 1 / -1; height: 5px; accent-color: #efb46e; }
+#end-challenge { grid-column: 1 / -1; justify-self: end; background: none; border: 0; padding: 8px; font-size: 11px; }
+body.challenging .journey, body.challenging #weather-status, body.challenging .driving-hint { display: none; }
+@media (max-width: 600px) { .game-cards { grid-template-columns: 1fr; gap: 16px; margin-top: 20px; } .game-screen .dialog-heading { align-items: flex-start; } .game-screen .close { flex-shrink: 0; } .topbar .brand { font-size: 10px; letter-spacing: 1px; } .topbar .brand svg { width: 22px; margin-right: 4px; } .topbar nav .icon-button { width: 36px; min-width: 36px; } #challenge-hud { top: 80px; } }
+@media (max-height: 500px) and (orientation: landscape) { #challenge-hud { top: 60px; left: 24px; transform: none; width: 240px; padding: 8px 12px; } .game-screen h2 { font-size: 30px; } }
+
+/* Keep the extra drift control and scenic shot presets reachable on phones. */
+@media (max-width: 600px) { .touch-controls button { width: 50px; min-width: 46px; } #photo-ui { flex-wrap: wrap; gap: 8px; } #photo-ui select { max-width: 150px; } }
+body.challenging #convoy-badge { top: 235px; }
+@media (max-height: 500px) and (orientation: landscape) { body.challenging #convoy-badge { top: 65px; left:auto; right:20px;transform:none; } }
+
+/* Keep the sensitivity explanation readable on narrow screens. */
+dialog label[for="sensitivity"] { display:grid; grid-template-columns:1fr auto; gap:10px 16px; }
+#sensitivity { grid-column:1 / -1; width:100%; min-width:0; }
+#sensitivity-help { grid-column:1 / -1; color:#d7dfd0; line-height:1.5; }
+#sensitivity-value { font-variant-numeric:tabular-nums; color:#e6c58f; }
