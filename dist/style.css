@@ -1130,7 +1130,7 @@ dialog label[for="sensitivity"] { display:grid; grid-template-columns:1fr auto; 
 
 #manual-games { display:block; margin-top:12px; }
 #drive-games { position:absolute; right:24px; top:90px; padding:10px 14px; pointer-events:auto; }
-body.challenging #drive-games { display:none; }
+body.challenging #drive-games { top:235px; }
 .scenario-picker { max-width:700px; }
 @media(max-width:600px) { #drive-games { top:76px; right:16px; font-size:11px; } }
 @media(max-height:500px) and (orientation:landscape) { #manual-games { display:inline-block; margin:0 0 0 8px; } #drive-games { top:58px; } }

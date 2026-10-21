@@ -32,3 +32,23 @@ test('shared race countdown, finish and timeout follow server time, not frames',
  r.tick(30000,{z:-1501});assert.equal(r.won,true);assert.equal(r.elapsed,20);
  const timeout=new RoadRace(10000);timeout.tick(140000,{z:-100});assert.equal(timeout.done,true);assert.equal(timeout.won,false);
 });
+
+const {SharedChallenge}=await import('../dist/challenges.js');
+test('shared mini-games synchronize countdown and expire while menus are paused',()=>{
+ for(const kind of ['sprint','cruise','drift','race']) {
+  const c=new SharedChallenge(kind,10000);
+  c.tick(7000,car);run(c,1,{...car,v:3});assert.equal(c.score,0);assert.equal(c.countdown,3);
+  c.tick(12000,{...car,z:-100});run(c,.5,{...car,v:3});
+  assert.equal(c.elapsed,2);assert.ok(c.score>0);
+  const score=c.score;c.tick(200000,{...car,z:-100});
+  assert.equal(c.done,true);assert.equal(c.score,score);
+  assert.equal(c.won,['cruise','drift'].includes(kind));
+ }
+});
+test('shared sprint and race require the correct distance before the deadline',()=>{
+ for(const [kind,distance] of [['sprint',750],['race',1500]]) {
+  const c=new SharedChallenge(kind,10000);c.tick(12000,{z:-(distance-1)});assert.equal(c.done,false);
+  c.tick(13000,{z:-distance});assert.equal(c.won,true);assert.equal(c.elapsed,3);
+  const late=new SharedChallenge(kind,10000);late.tick(200000,{z:-distance});assert.equal(late.won,false);
+ }
+});

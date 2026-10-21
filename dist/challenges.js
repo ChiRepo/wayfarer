@@ -52,3 +52,34 @@ export class RoadRace {
   }
   step() {} // fixed physics frames do not own the shared clock
 }
+
+// Shared rounds use wall-clock time; menus never extend a competitive round.
+export class SharedChallenge extends Challenge {
+  constructor(kind, startedAt) {
+    super(kind, 0);
+    this.shared = true;
+    this.startedAt = startedAt;
+    this.countdown = 5;
+  }
+  tick(now, car) {
+    if (this.done) return;
+    const config = challenges[this.kind];
+    this.countdown = Math.max(0, (this.startedAt - now) / 1000);
+    this.elapsed = Math.min(config.seconds, Math.max(0, (now - this.startedAt) / 1000));
+    if (this.countdown > 0) return;
+    this.progress = Math.max(this.progress, -car.z);
+    if (config.distance && this.progress >= config.distance) {
+      this.done = true; this.won = this.elapsed < config.seconds;
+    }
+    if (this.elapsed >= config.seconds) {
+      this.done = true;
+      this.won = !config.distance;
+    }
+  }
+  step(dt, car) {
+    if (this.countdown > 0 || this.done) return;
+    const elapsed = this.elapsed;
+    super.step(dt, car);
+    this.elapsed = elapsed; // tick owns the shared deadline; step only scores active driving.
+  }
+}

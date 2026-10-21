@@ -10,7 +10,7 @@
     />
     <title>Wayfarer — Find your horizon</title>
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./style.css?v=20261021d" />
+    <link rel="stylesheet" href="./style.css?v=20261022a" />
   </head>
   <body>
     <canvas id="scene" aria-label="Procedural 3D driving landscape"></canvas>
@@ -135,7 +135,7 @@
     <div id="toast" role="status" aria-live="polite"></div>
     <dialog id="games-dialog" class="game-screen" aria-labelledby="games-title">
       <div class="dialog-heading"><div><span class="eyebrow">A LITTLE FRIENDLY AMBITION</span><h2 id="games-title">Find your next challenge.</h2></div><button class="close" aria-label="Close mini-games">×</button></div>
-      <p class="muted">Find your rhythm, race the horizon, or build a drift streak. Choose a scenario, then start a manual challenge. You control the throttle, steering and brakes. Pause whenever you need a breath.</p>
+      <p class="muted">Find your rhythm, race the horizon, or build a drift streak. Choose a scenario, then start a manual challenge. You control the throttle, steering and brakes. Solo timers pause in menus; shared rounds keep running.</p>
       <label class="scenario-picker" for="game-scenario">Driving scenario
         <select id="game-scenario"><option value="current">Your current road</option><option value="alpine">Alpine daylight</option><option value="rain">Coastal rain</option><option value="night">Desert after dark</option><option value="track">Racing road</option></select>
       </label>
@@ -144,7 +144,7 @@
         <article><span class="eyebrow">01 / AGAINST THE CLOCK</span><h3>Horizon Sprint</h3><p>750 metres. 90 seconds. Find your line through the bends and reach the horizon before time runs out.</p><button class="primary" data-challenge="sprint">Start sprint ↗</button></article>
         <article><span class="eyebrow">02 / FIND YOUR FLOW</span><h3>Clean Cruise</h3><p>60 seconds of smooth driving. Stay on the road above 30 km/h. Longer clean streaks multiply your points.</p><button class="primary" data-challenge="cruise">Start cruise ↗</button></article>
         <article><span class="eyebrow">03 / CONTROL THE SLIDE</span><h3>Drift Flow</h3><p>60 seconds. Enter a bend, tap the handbrake, countersteer and catch the slide. Stay on the road to score.</p><button class="primary" data-challenge="drift">Start drift flow ↗</button></article>
-      </div><p id="games-note" class="muted">Manual driving only. Reset ends the attempt. Escape or × closes this menu.</p>
+      </div><button id="shared-free-drive" class="secondary" hidden>Apply scenario & return lobby to free drive</button><p id="games-note" class="muted">Manual driving only. Reset ends the attempt. Escape or × closes this menu.</p>
     </dialog>
     <dialog id="results-dialog" class="game-screen" aria-labelledby="results-title">
       <div class="dialog-heading"><span class="eyebrow">THE FINISH LINE</span><button class="close" aria-label="Close results">×</button></div>
@@ -152,7 +152,7 @@
     </dialog>
     <dialog id="multiplayer-dialog">
       <div class="dialog-heading"><div><span class="eyebrow">A LITTLE COMPANY</span><h2>Wander together.</h2></div><button class="close" aria-label="Close multiplayer">×</button></div>
-      <p class="muted">Shared drives keep cars ghosted. Race rooms enable car contact and a synchronized 1500-metre sprint. Invite friends before the host starts. Casual racing; no anti-cheat.</p>
+      <p class="muted">Stay together in one lobby. The host can start Sprint, Cruise, Drift or a 1500-metre race, switch scenarios, and return everyone to free driving. Sprint and race enable car contact. Casual play; scores are client-reported.</p>
       <div id="room-form">
         <label for="driver-name">Your driving name<input id="driver-name" maxlength="20" value="Wanderer" autocomplete="nickname" /></label>
         <button id="create-room" class="primary">Start a shared drive <span>↗</span></button>
@@ -167,6 +167,7 @@
         <label for="invite-link">Invite link<input id="invite-link" readonly /></label>
         <button id="copy-invite" class="secondary">Copy invite link ↗</button>
         <ul id="room-players"></ul>
+        <button id="room-games" class="secondary">Mini-games & scenarios ↗</button>
         <button id="launch-race" class="primary" hidden>Start race · 5 second countdown</button>
         <p id="race-status" class="muted"></p>
         <div class="room-actions"><button id="meet-convoy" class="secondary">Meet the convoy</button><button id="leave-room" class="text-button">Leave room</button></div>
@@ -181,7 +182,8 @@
         </div>
         <button class="close" aria-label="Close settings">×</button>
       </div>
-      <p id="shared-route-note" class="muted" hidden>Your room shares one road and sky. Leave the room to change scenery.</p>
+      <p id="shared-route-note" class="muted" hidden>Your host can change the shared road and sky without leaving the room.</p>
+      <button id="settings-games" class="secondary">Mini-games & scenarios ↗</button>
       <label
         >Landscape<select aria-label="Landscape" id="landscape">
           <option value="alpine">The Alpine Pass</option>
@@ -288,6 +290,6 @@
       >
       <p class="muted">You can also save the image using your browser’s image menu.</p>
     </dialog>
-    <script type="module" src="./app.js?v=20261021d"></script>
+    <script type="module" src="./app.js?v=20261022a"></script>
   </body>
 </html>

@@ -98,6 +98,12 @@
             },
             "finish": {
               ".validate": "newData.isNumber() && (newData.val() === 0 || (newData.val() <= now && newData.val() >= root.child('rooms').child($room).child('race/startedAt').val()))"
+            },
+            "routeId": {
+              ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === root.child('rooms').child($room).child('race/startedAt').val())"
+            },
+            "score": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2000 && newData.val() % 1 === 0"
             }
           }
         },
@@ -105,13 +111,28 @@
           ".validate": false
         },
         "race": {
-          ".write": "auth != null && root.child('rooms').child($room).child('meta/owner').val() === auth.uid && root.child('rooms').child($room).child('meta/mode').val() === 'race' && root.child('rooms').child($room).child('meta/expiresAt').val() > now",
-          ".validate": "newData.hasChildren(['startedAt'])",
+          ".write": "auth != null && root.child('rooms').child($room).child('meta/owner').val() === auth.uid && root.child('rooms').child($room).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['startedAt']) && (!newData.child('kind').exists() || newData.hasChildren(['kind','seed','biome','weather','weatherCycle']))",
           "startedAt": {
-            ".validate": "newData.isNumber() && newData.val() >= now + 3000 && newData.val() <= now + 10000"
+            ".validate": "newData.isNumber() && newData.val() >= now + 3000 && newData.val() <= now + 10000 && (!data.exists() || newData.val() > data.val())"
           },
           "$other": {
             ".validate": false
+          },
+          "kind": {
+            ".validate": "newData.isString() && newData.val().matches(/^(drive|race|sprint|cruise|drift)$/)"
+          },
+          "seed": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99999 && newData.val() % 1 === 0"
+          },
+          "biome": {
+            ".validate": "newData.val() === 'alpine' || newData.val() === 'coast' || newData.val() === 'desert'"
+          },
+          "weather": {
+            ".validate": "newData.isString() && newData.val().matches(/^(golden|day|rain|night|mist|overcast)$/)"
+          },
+          "weatherCycle": {
+            ".validate": "newData.isBoolean()"
           }
         }
       }

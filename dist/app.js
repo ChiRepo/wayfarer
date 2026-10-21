@@ -1,8 +1,8 @@
-import { Challenge, RoadRace, challenges, scenarios } from "./challenges.js?v=20261021d";
-import { Multiplayer, cleanName, cleanCode } from "./multiplayer.js?v=20261021d";
-import { WeatherCycle, weatherNames, roomWeather } from "./weather.js?v=20261021d";
-import { World } from "./world.js?v=20261021d";
-import { Vehicle, makeRoad, clamp } from "./physics.js?v=20261021d";
+import { Challenge, SharedChallenge, challenges, scenarios } from "./challenges.js?v=20261022a";
+import { Multiplayer, cleanName, cleanCode } from "./multiplayer.js?v=20261022a";
+import { WeatherCycle, weatherNames, roomWeather } from "./weather.js?v=20261022a";
+import { World } from "./world.js?v=20261022a";
+import { Vehicle, makeRoad, clamp } from "./physics.js?v=20261022a";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 let preferences = {
@@ -109,7 +109,7 @@ function syncUI() {
   );
 }
 function changeRoad(biome = preferences.biome, newSeed = false, shared = false) {
-  if (multiplayer.active && !shared) return toast("Leave the room to change your route.");
+  if (multiplayer.active && !shared) return void changeSharedSession("drive", {biome, ...(newSeed ? {seed: Math.floor(Math.random()*90000)} : {})});
   if (challenge) endChallenge("Route changed. Start a fresh attempt whenever you like.");
   preferences.biome = biome;
   if (newSeed) preferences.seed = Math.floor(Math.random() * 90000);
@@ -122,7 +122,8 @@ function changeRoad(biome = preferences.biome, newSeed = false, shared = false) 
   syncUI();
   save();
 }
-function setWeather(w) {
+function setWeather(w, shared = false) {
+  if (multiplayer.active && !shared) return void changeSharedSession("drive", {weather:w});
   preferences.weather = w;
   climate.select(w);
   world.setWeather(w);
@@ -196,23 +197,38 @@ function setPhoto(on) {
     world.orbitDistance = 9;
   } else $("#scene").style.cursor = "default";
 }
+let sessionChanging = false;
 const multiplayer = new Multiplayer({
   status: message => { $("#room-message").textContent = message; syncRoomUI(); },
   change: () => {
-    if(!multiplayer.active && challenge?.kind==='race') endChallenge('Race connection ended.');
+    if(!multiplayer.active && challenge?.shared) endChallenge('Room connection ended.');
     syncRoomUI();
   },
-  race: race => {
-    syncRoomUI();
-    if(!race || multiplayer.meta.mode!=='race') return;
-    if(multiplayer.now >= race.startedAt) return toast('This race is underway. Ask the host to start the next one.');
+  race: round => {
+    if (!round) { syncRoomUI(); return; }
+    // A host change replaces the activity, never the room or player slots.
+    challenge = null; syncChallenge();
+    const route = multiplayer.route;
+    preferences.seed = route.seed;
+    preferences.weatherCycle = route.weatherCycle ?? true;
+    changeRoad(route.biome, false, true);
+    climate = new WeatherCycle(route.seed, route.weather);
+    setWeather(route.weather, true);
+    lastRoomClock = -1;
     $$("dialog[open]").forEach(d=>d.close()); setPhoto(false);
     auto=false; $("#autodrive").setAttribute('aria-pressed','false');
     vehicle.reset(-Math.floor(multiplayer.slot/2)*6);
     vehicle.x=road.center(-vehicle.z)+(multiplayer.slot%2 ? -1.85 : 1.85);
     vehicle.updateSuspension(0,true); world.initialized=false;
-    multiplayer.raceId=race.startedAt; multiplayer.finish=0;
-    challenge=new RoadRace(race.startedAt); syncChallenge();
+    const kind = round.kind || 'race';
+    if (kind !== 'drive' && multiplayer.now < round.startedAt) {
+      multiplayer.raceId=round.startedAt;
+      challenge=new SharedChallenge(kind, round.startedAt);
+      challenge.scenarioName='Shared lobby';
+    } else {
+      toast(kind === 'drive' ? 'Shared scenery updated. Same room, same friends.' : 'Round already started. Keep driving; join the next countdown.');
+    }
+    syncChallenge(); syncRoomUI();
     keys.clear();touch.clear();accumulator=0;
   },
   peers: peers => { world.setPeers(peers); syncRoomUI(); },
@@ -237,25 +253,35 @@ function syncRoomUI() {
   $("#room-session").hidden = !active;
   $("#create-room").disabled = multiplayer.pending;
   $("#create-race").disabled = multiplayer.pending;
-  $("#launch-race").hidden = !(active && multiplayer.meta.mode==='race' && multiplayer.meta.owner===multiplayer.uid);
-  $("#launch-race").disabled = !!(multiplayer.race && multiplayer.now < multiplayer.race.startedAt+120000);
-  $("#race-status").textContent = active && multiplayer.meta.mode==='race' ? 'Race lobby · host starts the countdown. Late arrivals wait for the next race. The clock keeps running while menus are open.' : '';
+  $("#launch-race").hidden = !multiplayer.isHost;
+  $("#launch-race").disabled = !multiplayer.connected;
+  $("#race-status").textContent = active ? (multiplayer.isHost ? 'You host this session. Choose mini-games or change scenery without leaving. Starting another activity replaces the current round for everyone.' : 'The host can switch scenarios and start shared mini-games here. Your room and invite stay the same.') : '';
+  syncGamesUI();
   $("#join-room").disabled = multiplayer.pending;
   $("#cancel-room").hidden = !multiplayer.pending;
   $("#multiplayer").setAttribute("aria-label", active ? "Open multiplayer room" : "Drive together");
   $("#convoy-badge").hidden = !active;
   $("#convoy-badge").textContent = active ? `${multiplayer.connected ? "◉" : "○"} ${multiplayer.peers.length + 1}/8 driving together` : "";
-  for (const selector of ["#landscape", "#weather", "#weather-cycle", "#new-road", "#track-road", "#mood"]) $(selector).disabled = active;
-  $$("[data-biome]").forEach(b => b.disabled = active);
+  for (const selector of ["#landscape", "#weather", "#weather-cycle", "#new-road", "#track-road", "#mood"]) $(selector).disabled = active && !multiplayer.isHost;
+  $$("[data-biome]").forEach(b => b.disabled = active && !multiplayer.isHost);
   $("#shared-route-note").hidden = !active;
+  $("#shared-route-note").textContent = multiplayer.isHost ? 'Host controls: scenery changes end the current round and move everyone to the updated shared road. Your room stays open.' : 'The host controls the shared road and sky. Personal controls stay adjustable. Open Mini-games to see the scenarios.';
   if (active) {
     $("#active-room-code").textContent = multiplayer.code;
     const invite = new URL(location.href); invite.search = ""; invite.hash = ""; invite.searchParams.set("room", multiplayer.code);
     $("#invite-link").value = invite.href;
-    $("#room-players").replaceChildren();
-    const names = [`${multiplayer.name} (you)`, ...multiplayer.peers.map(p=>p.name+(p.finish>0 && p.raceId===multiplayer.race?.startedAt ? ` · ${((p.finish-p.raceId)/1000).toFixed(2)}s` : ''))];
-    for (const name of names) { const li=document.createElement("li"); li.textContent=name; $("#room-players").append(li); }
-    $("#meet-convoy").disabled = multiplayer.peers.length === 0 || multiplayer.meta.mode === "race";
+    const roundId = multiplayer.race?.startedAt;
+    const scored = ['cruise','drift'].includes(multiplayer.race?.kind);
+    const result = p => p.raceId === roundId && roundId ? (scored ? ` · ${Math.floor(p.score || 0)} pts${p.finish ? ' · finished' : ''}` : p.finish ? ` · ${((p.finish-p.raceId)/1000).toFixed(2)}s` : ' · racing') : '';
+    const names = [`${multiplayer.name} (you)${result(multiplayer)}`, ...multiplayer.peers.map(p=>p.name+result(p))];
+    const roster = JSON.stringify(names);
+    if ($("#room-players").dataset.roster !== roster) {
+      $("#room-players").dataset.roster = roster;
+      $("#room-players").replaceChildren(...names.map(name => {
+        const li=document.createElement("li"); li.textContent=name; return li;
+      }));
+    }
+    $("#meet-convoy").disabled = multiplayer.visiblePeers.length === 0 || !!challenge?.shared;
   }
 }
 $("#multiplayer").addEventListener("click", () => openDialog("#multiplayer-dialog"));
@@ -271,7 +297,7 @@ $("#launch-race").addEventListener("click",async()=>{
   try { await multiplayer.startRace(); } catch { toast('Could not start the race. Check the connection and retry.'); }
 });
 $("#track-road").addEventListener("click",()=>{
-  if(multiplayer.active) return;
+  if(multiplayer.active) return void changeSharedSession("drive", {seed:90000+Math.floor(Math.random()*10000)});
   preferences.seed=90000+Math.floor(Math.random()*10000);changeRoad();toast('Fresh track: sweepers, straights and chicanes.');
 });
 $("#viewpoint").addEventListener("change",e=>{
@@ -291,7 +317,7 @@ $("#copy-invite").addEventListener("click", async () => {
   catch { $("#invite-link").select(); $("#room-message").textContent = "Copy the selected link to invite a friend."; }
 });
 $("#meet-convoy").addEventListener("click", () => {
-  const peer = multiplayer.peers[0]; if (!peer) return;
+  const peer = multiplayer.visiblePeers[0]; if (!peer) return;
   vehicle.reset(-peer.z - 10);
   vehicle.x = road.center(-vehicle.z) + (multiplayer.slot % 2 ? -1.85 : 1.85);
   vehicle.updateSuspension(0,true); world.initialized = false;
@@ -316,13 +342,14 @@ function syncChallenge() {
 function endChallenge(reason) {
   if (!challenge) return;
   const run = challenge;
-  if(run.kind==='race') {
-    multiplayer.finish=run.won && !reason ? multiplayer.now : 0;
+  if(run.shared) {
+    multiplayer.score=['cruise','drift'].includes(run.kind) ? Math.floor(run.score) : 0;
+    multiplayer.finish=!reason && (run.won || !challenges[run.kind].distance) ? multiplayer.now : 0;
     multiplayer.raceId=reason ? 0 : multiplayer.raceId;
-    const finishers=multiplayer.peers.filter(p=>p.raceId===run.startedAt && p.finish>0 && p.finish<multiplayer.finish).length;
-    reason=reason || (run.won ? `Finished in ${run.elapsed.toFixed(2)}s · provisional position ${finishers+1}. Open the room for finish times. Leave or wait for the host’s next race.` : 'Race time is up. Wait for the next start in your room.');
+    reason=reason || (challenges[run.kind].distance ? (run.won ? `Finished in ${run.elapsed.toFixed(2)}s.` : 'Time is up.') : `${Math.floor(run.score)} points.`) + ' Check the room for shared results. Stay here for the host’s next round.';
+    syncRoomUI();
   }
-  $("#replay-challenge").hidden=run.kind==='race';
+  $("#replay-challenge").hidden=!!run.shared;
   challenge = null;
   syncChallenge();
   $("#results-title").textContent = reason ? "Take another run." : run.won ? "Beautifully driven." : "The horizon can wait.";
@@ -330,9 +357,11 @@ function endChallenge(reason) {
   openDialog("#results-dialog");
 }
 function beginChallenge(kind) {
-  if (multiplayer.active || multiplayer.pending) return toast("Leave your shared drive before starting a solo challenge.");
+  if (multiplayer.pending) return toast("Wait for the room connection to finish.");
+  if (multiplayer.active) return void changeSharedSession(kind, selectedScenario());
   $$("dialog[open]").forEach(d => d.close());
   if (!started) start();
+  setPhoto(false);
   auto = false;
   $("#autodrive").setAttribute("aria-pressed", "false");
   challenge = null;
@@ -351,11 +380,38 @@ function beginChallenge(kind) {
   keys.clear(); touch.clear(); accumulator = 0;
   syncChallenge();
 }
+function selectedScenario() {
+  const {biome, weather, seed} = scenarios[$("#game-scenario").value] || scenarios.current;
+  return biome ? {biome, weather, seed, weatherCycle:false} : {};
+}
+
+async function changeSharedSession(kind, overrides = {}) {
+  if (!multiplayer.isHost) return toast('The host starts shared games and changes scenery for everyone.');
+  if (sessionChanging) return;
+  sessionChanging = true; syncGamesUI();
+  try {
+    await multiplayer.startRound(kind, {...multiplayer.route, ...overrides});
+  } catch {
+    toast('Could not update the session. Check the connection and try again.');
+    syncUI();
+  } finally { sessionChanging = false; syncGamesUI(); }
+}
+function syncGamesUI() {
+  const active = multiplayer.active, host = multiplayer.isHost;
+  const blocked = multiplayer.pending || sessionChanging || (active && (!host || !multiplayer.connected));
+  $("#games-note").textContent = active ? (host ? 'Start any challenge for the whole lobby. This replaces the current round. The clock continues in menus; late arrivals wait for the next start.' : 'Choose a scenario to explore the options. Your host starts shared rounds and changes scenery. You stay in this room throughout.') : 'Manual driving only. Reset ends the attempt. Escape or × closes this menu.';
+  $$("[data-challenge]").forEach(b => b.disabled = blocked);
+  $("#shared-free-drive").hidden = !active;
+  $("#shared-free-drive").disabled = blocked;
+}
 function openGames() {
-  $("#games-note").textContent = multiplayer.active || multiplayer.pending ? "Leave your shared drive to play these solo challenges." : "Manual driving only. Reset ends the attempt. Escape or × closes this menu.";
-  $$("[data-challenge]").forEach(b => b.disabled = multiplayer.active || multiplayer.pending);
+  syncGamesUI();
+  $$("dialog[open]").forEach(d=>d.close());
   openDialog("#games-dialog");
 }
+$("#room-games").addEventListener("click", openGames);
+$("#settings-games").addEventListener("click", openGames);
+$("#shared-free-drive").addEventListener("click", () => void changeSharedSession('drive', selectedScenario()));
 for (const id of ["#games", "#manual-games", "#drive-games"]) $(id).addEventListener("click", openGames);
 $("#game-scenario").addEventListener("change", e => {
   const descriptions = {current:"Keep your current road and weather.",alpine:"Clear mountain bends. Practice a smooth racing line.",rain:"Wet coastal corners with reduced rain grip. Brake early.",night:"Desert roads under blue-hour light. Watch the road ahead.",track:"Seeded sweepers, straights and chicanes in clear daylight."};
@@ -364,7 +420,7 @@ $("#game-scenario").addEventListener("change", e => {
 $$("[data-challenge]").forEach(b => b.addEventListener("click", () => beginChallenge(b.dataset.challenge)));
 $("#end-challenge").addEventListener("click", () => endChallenge("Attempt ended. The open road is still yours."));
 $("#replay-challenge").addEventListener("click", () => beginChallenge(lastChallenge));
-$("#browse-challenges").addEventListener("click", () => { $("#results-dialog").close(); openDialog("#games-dialog"); });
+$("#browse-challenges").addEventListener("click", openGames);
 $("#free-drive").addEventListener("click", () => $("#results-dialog").close());
 function syncFullscreen() {
   const active = !!document.fullscreenElement;
@@ -411,6 +467,7 @@ $$("dialog").forEach((d) => {
 $("#landscape").addEventListener("change", (e) => changeRoad(e.target.value));
 $("#weather").addEventListener("change", (e) => setWeather(e.target.value));
 $("#weather-cycle").addEventListener("change", e => {
+  if (multiplayer.active) return void changeSharedSession("drive", {weatherCycle:e.target.value === "true"});
   preferences.weatherCycle = e.target.value === "true";
   climate.elapsed = 0;
   save();
@@ -629,7 +686,9 @@ function frame(now) {
     const second = Math.floor(multiplayer.now / 1000);
     if (second !== lastRoomClock) {
       lastRoomClock = second;
-      climate = roomWeather(multiplayer.meta.seed, multiplayer.meta.weather, (multiplayer.now-multiplayer.meta.createdAt)/1000);
+      const route = multiplayer.route;
+      const elapsed = Math.max(0, (multiplayer.now-(multiplayer.race?.startedAt || route.createdAt))/1000);
+      climate = route.weatherCycle === false ? new WeatherCycle(route.seed, route.weather) : roomWeather(route.seed, route.weather, elapsed);
       if (preferences.weather !== climate.current) {
         preferences.weather = climate.current; world.setWeather(climate.current); syncUI();
       }
@@ -639,7 +698,7 @@ function frame(now) {
   world.rainAmount = climate.rain;
   world.wind = climate.wind;
   world.climateVariation = climate.variation;
-  if(challenge?.kind==='race') {
+  if(challenge?.shared) {
     challenge.tick(multiplayer.now,vehicle);
     if(challenge.done) endChallenge();
   }
@@ -653,14 +712,15 @@ function frame(now) {
       } else {
         vehicle.step(1 / 120, lastInput, climate.wetness);
         world.resolveCollisions(vehicle);
-        if(challenge?.kind==='race' && challenge.countdown===0) {
-          for(const peer of multiplayer.peers) if(peer.raceId===challenge.startedAt && !peer.finish && multiplayer.now-peer.t<750) {
+        if(challenge?.shared && ['race','sprint'].includes(challenge.kind) && challenge.countdown===0) {
+          for(const peer of multiplayer.visiblePeers) if(peer.raceId===challenge.startedAt && !peer.finish && multiplayer.now-peer.t<750) {
             const age=clamp((multiplayer.now-peer.t)/1000,0,.15);
             vehicle.collidePlayer({...peer,x:peer.x+Math.sin(peer.h)*peer.u*age,z:peer.z-Math.cos(peer.h)*peer.u*age},1/120);
           }
         }
         if (challenge) {
           challenge.step(1 / 120, vehicle);
+          if (challenge.shared) multiplayer.score=['cruise','drift'].includes(challenge.kind) ? challenge.score : 0;
           if (challenge.done) { endChallenge(); accumulator = 0; break; }
         }
       }

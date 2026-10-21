@@ -4,6 +4,14 @@ Canonical folder: `/Users/chinmayc/Documents/slow roads remake`.
 Project name: **Slow Roads Remake — Wayfarer**.
 Original chat: `01a13134-2b74-7150-a90b-4720844a3b5c` — Rebuild Slowroads.io from scratch.
 
+## 22 October 2026 — Shared mini-games and persistent lobby scenarios
+
+Extended both existing lobby types with host-controlled Sprint, Cruise, Drift, race and free-drive activities. An atomic round message carries route, weather and a five-second server-time countdown; player seats, room code and invitations remain intact. Host settings now change shared scenery/weather/road without leaving. Scenario changes end the current round and reset everyone. Late joins load the current route and wait for the next start. Shared score/finish data is displayed in the room, with pause ghosting for races and retained score visibility for Cruise/Drift. Old-route peers are hidden until their updated pose arrives. An in-flight old pose rejected during a switch no longer asks players to rejoin.
+
+Validation: 37 offline tests and six syntax checks passed. Deployed additive database rules and passed all 57 live isolated checks, including all five activity transitions, guest denial, invalid round data, seat preservation and bounded scores. Two browser clients in room 2XHEGEH7Z4 received synchronized Cruise and Drift starts, shared points, and the same new scenery when returning to free driving; both original identities remained in the room. Guest start buttons were disabled. Test clients left normally after verification. Screenshot: work/qa/shared-session-release.png. One expected stale pose rejection during switching led to the retry-status fix, covered by regression. Physical devices and adverse network contacts remain unverified.
+
+Firebase Hosting published release 20261022a successfully at https://wavefinder-2da9d.web.app. All 13 deployed files match local hashes; live startup and lobby controls show no captured console errors. Prepared the verified source for the existing GitHub main branch.
+
 ## 21 October 2026 — Steering sensitivity correction and manual scenarios
 
 Fixed saturated steering input: previously digital full-lock hit the same grip limit at most sensitivity settings. Manual sensitivity now scales the available angle after limiting and controls response speed; 2.00× reaches the safe maximum. Preserved the existing autopilot mapping. Added a regression measuring sustained heading changes at 10, 20 and 35 m/s across 0.25×, 1.00× and 2.00×.

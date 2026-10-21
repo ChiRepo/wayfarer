@@ -1,4 +1,4 @@
-import { makeRoad } from './physics.js?v=20261021';
+import { makeRoad } from './physics.js?v=20261022a';
 export const config = {
   apiKey: 'AIzaSyCtxRORRJxB6OTheahlRrBiCmGsXd22Jqo',
   authDomain: 'wavefinder-2da9d.firebaseapp.com',
@@ -25,6 +25,11 @@ export class Multiplayer {
     this.callbacks = callbacks; this.active = false; this.connected = false;
     this.pending = false; this.peers = []; this.unsub = []; this.generation = 0;
     this.serverOffset = 0; this.sendTime = 0; this.sending = false;
+  }
+  get isHost() { return this.active && this.meta?.owner === this.uid; }
+  get route() { return this.race?.kind ? {...this.meta, ...this.race} : this.meta; }
+  get visiblePeers() {
+    return this.race?.kind ? this.peers.filter(p => p.routeId === this.race.startedAt) : this.peers;
   }
   get now() { return Date.now() + this.serverOffset; }
   status(message) { this.callbacks.status(message); }
@@ -99,7 +104,9 @@ export class Multiplayer {
       this.callbacks.room(meta,this.slot,this.spawnS);
       this.unsub.push(f.onValue(f.ref(this.db,`rooms/${code}/race`), snapshot=>{
         this.race=snapshot.val();
+        this.raceId=0; this.finish=0; this.score=0; this.lastPayload=null;
         this.callbacks.race?.(this.race);
+        this.callbacks.peers(this.visiblePeers);
       }));
       this.unsub.push(f.onValue(f.ref(this.db,`rooms/${code}/players`), snapshot => {
         const data=snapshot.val() || {};
@@ -109,7 +116,7 @@ export class Multiplayer {
         }
         this.peers=Object.entries(data).filter(([slot,p])=>Number(slot)!==this.slot && p.t>this.now-120000)
           .map(([slot,p])=>({...p,id:slot}));
-        this.callbacks.peers(this.peers);
+        this.callbacks.peers(this.visiblePeers);
       },error => { this.status('Room connection interrupted. You can keep driving solo.'); void this.leave(); }));
       this.unsub.push(f.onValue(f.ref(this.db,'.info/serverTimeOffset'),s=>this.serverOffset=s.val() || 0));
       this.unsub.push(f.onValue(f.ref(this.db,'.info/connected'),snapshot=>{
@@ -147,23 +154,40 @@ export class Multiplayer {
     const recent=this.peers.filter(p=>p.t>this.now-120000);
     if(recent.length!==this.peers.length) { this.peers=recent; this.callbacks.peers(recent); }
   }
-  async startRace() {
-    if(!this.active || this.meta.mode!=='race' || this.meta.owner!==this.uid) return;
-    await this.sdk.set(this.sdk.ref(this.db,`rooms/${this.code}/race`),{startedAt:this.now+5000});
+  async startRound(kind, route = this.route) {
+    if (!this.isHost || !this.connected) throw Error('Only the connected host can change the shared session.');
+    if (!['drive','race','sprint','cruise','drift'].includes(kind)) throw Error('Unknown activity.');
+    const generation=this.generation;
+    const result = await this.sdk.runTransaction(this.sdk.ref(this.db,`rooms/${this.code}/race`), current => {
+      if (generation !== this.generation) return;
+      const startedAt = Math.max(this.now + 5000, (current?.startedAt || 0) + 1);
+      return {kind, startedAt, seed:route.seed, biome:route.biome, weather:route.weather,
+        weatherCycle:route.weatherCycle ?? false};
+    }, {applyLocally:false});
+    if (!result.committed) throw Error('Session change was cancelled.');
   }
+  async startRace() { return this.startRound('race'); }
   publish(payload) {
-    payload={...payload,raceId:this.isPaused && !this.finish ? 0 : this.raceId || 0,finish:this.finish || 0};
+    payload={...payload,routeId:this.race?.startedAt || 0,score:Math.floor(this.score || 0),raceId:this.isPaused && !this.finish && !["cruise","drift"].includes(this.race?.kind) ? 0 : this.raceId || 0,finish:this.finish || 0};
     this.sending=true; this.lastPayload=payload; this.lastSentAt=this.now;
     const generation=this.generation;
-    this.sdk.set(this.playerRef,payload).catch(()=>{
-      if (generation===this.generation) this.status('Connection interrupted. Try rejoining the room.');
+    this.sdk.set(this.playerRef,payload).then(()=>{
+      if (generation===this.generation && this.publishError) {
+        this.publishError=false; this.status('Connected · enjoy the drive together.');
+      }
+    }).catch(()=>{
+      // An in-flight pose from the preceding scenario may be rejected after a
+      // host switch. The next tick sends the new route; membership is intact.
+      if (generation===this.generation && payload.routeId===(this.race?.startedAt || 0)) {
+        this.publishError=true; this.status('Movement update delayed. Retrying automatically…');
+      }
     }).finally(()=>{ if(generation===this.generation) this.sending=false; });
   }
   async leave() {
     ++this.generation;
     clearInterval(this.heartbeat); this.heartbeat=null; this.lastPayload=null;
     const f=this.sdk, player=this.playerRef, room=this.roomRef, code=this.code;
-    this.active=false; this.connected=false; this.pending=false; this.race=null; this.raceId=0; this.finish=0;
+    this.active=false; this.connected=false; this.pending=false; this.race=null; this.raceId=0; this.finish=0; this.score=0;
     for(const off of this.unsub) off(); this.unsub=[];
     this.playerRef=null; this.roomRef=null; this.code=null; this.peers=[]; this.sending=false;
     this.callbacks.peers([]); this.callbacks.change();

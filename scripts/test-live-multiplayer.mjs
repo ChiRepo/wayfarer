@@ -26,7 +26,7 @@ try {
  expect(await request(null),false,'unauthenticated room reads denied');
  const rootURL=new URL(config.databaseURL+'/rooms.json');rootURL.searchParams.set('auth',a.idToken);
  expect({ok:(await fetch(rootURL)).ok,status:0},false,'room directory enumeration denied');
- expect(await request(a,'/meta','PUT',{owner:a.localId,seed:37,biome:'alpine',weather:'rain',mode:'race',createdAt:{'.sv':'timestamp'},expiresAt:Date.now()+300000}),true,'authenticated room creation');
+ expect(await request(a,'/meta','PUT',{owner:a.localId,seed:37,biome:'alpine',weather:'rain',mode:'drive',createdAt:{'.sv':'timestamp'},expiresAt:Date.now()+300000}),true,'authenticated room creation');
  const player=(account,name)=>({uid:account.localId,name,color:'#efb46e',x:12,y:20,z:-30,h:0,p:0,r:0,steer:0,spin:0,u:0,w0:-.32,w1:-.32,w2:-.32,w3:-.32,t:{'.sv':'timestamp'}});
  expect(await request(a,'/players/0','PUT',player(a,'Test Alpha')),true,'first player joins');
  expect(await request(b,'/players/1','PUT',player(b,'Test Beta')),true,'second identity joins');
@@ -52,6 +52,29 @@ try {
  assert.equal((await request(b,'/players/0')).data.x,15);checks++;console.log('PASS movement visible to second identity');
  for(let slot=2;slot<8;slot++) expect(await request(a,`/players/${slot}`,'PUT',player(a,'Test Slot '+slot)),true,'allowed seat '+slot);
  expect(await request(a,'/players/8','PUT',player(a,'Ninth')),false,'ninth seat rejected');
+ const round=()=>({kind:'drift',startedAt:Date.now()+6000,seed:25,biome:'coast',weather:'rain',weatherCycle:false});
+ expect(await request(b,'/race','PUT',round()),false,'guest cannot change shared scenario');
+ expect(await request(a,'/race','PUT',{...round(),kind:'invalid'}),false,'unknown mini-game rejected');
+ expect(await request(a,'/race','PUT',{...round(),seed:100000}),false,'out-of-range scenario seed rejected');
+ expect(await request(a,'/race','PUT',{...round(),weatherCycle:'false'}),false,'invalid weather cycle rejected');
+ expect(await request(a,'/race','PUT',{kind:'cruise',startedAt:Date.now()+6000}),false,'incomplete scenario rejected');
+ const originalPlayers=(await request(a,'/players')).data;
+ for(const kind of ['sprint','cruise','drift','drive','race']) {
+   const next={...round(),kind};
+   expect(await request(a,'/race','PUT',next),true,'host switches existing drive lobby to '+kind);
+   const observed=(await request(b,'/race')).data;
+   assert.deepEqual(observed,next);checks++;console.log('PASS guest receives '+kind+' scenario');
+   const players=(await request(b,'/players')).data;
+   assert.deepEqual(Object.keys(players),Object.keys(originalPlayers));
+   assert.equal(players['1'].uid,b.localId);checks++;console.log('PASS seats preserved during '+kind);
+ }
+ const latest=(await request(a,'/race')).data;
+ expect(await request(a,'/race','PUT',latest),false,'replayed session update rejected');
+ expect(await request(b,'/players/1','PATCH',{routeId:latest.startedAt,raceId:latest.startedAt,score:123,finish:0}),true,'shared scores and route membership accepted');
+ expect(await request(b,'/players/1','PATCH',{score:2001}),false,'oversized score rejected');
+ expect(await request(b,'/players/1','PATCH',{score:-1}),false,'negative score rejected');
+ expect(await request(b,'/players/1','PATCH',{routeId:123}),false,'stale route membership rejected');
+ assert.equal((await request(a,'/meta')).data.owner,a.localId);checks++;console.log('PASS original host identity preserved');
  console.log(JSON.stringify({checks,project:config.projectId,result:'passed'}));
 } finally {
  if(a) { for(let i=0;i<8;i++) await request(i===1?b:a,`/players/${i}`,'DELETE').catch(()=>{}); await request(a,'','DELETE').catch(()=>{}); }

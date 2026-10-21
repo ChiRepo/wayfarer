@@ -1,5 +1,5 @@
 import * as T from "./vendor/three.module.js";
-import { clamp, damp, lerp, TERRAIN_OFFSETS } from "./physics.js?v=20261021d";
+import { clamp, damp, lerp, TERRAIN_OFFSETS } from "./physics.js?v=20261022a";
 const rand = (n) => {
   const r = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return r - Math.floor(r);

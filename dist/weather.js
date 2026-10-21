@@ -1,4 +1,4 @@
-import { clamp, damp } from "./physics.js";
+import { clamp, damp } from "./physics.js?v=20261022a";
 export const weatherNames = ["golden", "day", "overcast", "mist", "rain", "night"];
 export class WeatherCycle {
   constructor(seed = 7, initial = "golden") {
